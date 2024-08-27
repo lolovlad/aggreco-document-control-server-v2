@@ -196,7 +196,7 @@ class Accident(base):
 
     event = relationship(Event, back_populates="accident", lazy="joined")
 
-    additional_material = Column(String, unique=True, nullable=True)
+    additional_material = Column(String, nullable=True)
 
 
 class TypeBrakeToAccident(base):
