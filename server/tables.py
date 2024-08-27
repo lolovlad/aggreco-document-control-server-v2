@@ -114,7 +114,7 @@ class Equipment(base):
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
     id_object = Column(ForeignKey("object.id"))
     name = Column(String(256), nullable=False)
-    code = Column(String, nullable=True, unique=True)
+    code = Column(String, nullable=True)
     id_type = Column(ForeignKey("type_equipment.id"))
     type = relationship("TypeEquipment", lazy="joined")
     description = Column(Text, nullable=True)
