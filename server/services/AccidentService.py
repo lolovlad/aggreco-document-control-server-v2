@@ -90,6 +90,7 @@ class AccidentService:
         entity = Accident(
             id_object=obj.id,
             datetime_start=accident.datetime_start,
+            datetime_end=accident.datetime_end,
             time_line={},
             causes_of_the_emergency="Нет",
             damaged_equipment_material="Нет",
