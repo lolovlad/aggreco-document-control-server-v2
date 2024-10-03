@@ -46,7 +46,7 @@ async def get_one_user(uuid: str,
                                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@router.post("/", responses={
+@router.post("", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_201_CREATED: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}

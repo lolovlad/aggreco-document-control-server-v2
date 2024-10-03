@@ -9,6 +9,13 @@ from io import StringIO
 import csv
 from uuid import uuid4
 
+from urllib.parse import urlparse
+from ..settings import settings
+
+from pathlib import Path
+from os import listdir, path, mkdir, remove
+import aiofiles
+
 
 class AccidentService:
     def __init__(self,
@@ -69,7 +76,7 @@ class AccidentService:
                     )
                     type_brakes.append(type_brake)
 
-                await self.__type_brake_repo.add_list_type_blake(type_brakes)
+                await self.__type_brake_repo.add_list_type_brake(type_brakes)
 
         except Exception:
             raise Exception()
@@ -243,3 +250,44 @@ class AccidentService:
         list_event = await self.get_list_event(uuid)
 
         return list_event
+
+    async def get_file_accident(self, uuid_accident: str) -> list[FileAccident] | None:
+        accident = await self.__accident_repo.get_by_uuid(uuid_accident)
+        url_host = f"{settings.host_server}:{settings.port_server}"
+
+        parsed_uri = urlparse(accident.additional_material)
+
+        if url_host != parsed_uri.netloc:
+            return None
+
+        path_files = Path(settings.static_file, parsed_uri.path.split('/')[-1])
+
+        files = listdir(path_files)
+
+        return [FileAccident(path=str(path_files), name=i) for i in files]
+
+    async def add_file_accident(self, uuid_accident: str, file: UploadFile):
+
+        accident = await self.__accident_repo.get_by_uuid(uuid_accident)
+
+        start_path = Path(Path(__path__).absolute(), settings.static_file, accident.object.name)
+        if not path.isdir(Path(start_path)):
+            mkdir(start_path)
+
+        start_path = Path(start_path, uuid_accident)
+        if not path.isdir(Path(start_path)):
+            mkdir(start_path)
+
+        start_path = Path(start_path, file.filename)
+        async with aiofiles.open(start_path, 'wb') as out_file:
+            while content := await file.read(1024):
+                await out_file.write(content)
+
+        accident.additional_material = f"https://{settings.host_server}:{settings.port_server}/accident/files/{uuid_accident}/download"
+
+        await self.__accident_repo.update(accident)
+
+    async def delete_file(self, uuid_accident: str, name_file: str):
+        accident = await self.__accident_repo.get_by_uuid(uuid_accident)
+
+        remove(Path(Path(__path__), settings.static_file, accident.object.name, uuid_accident, name_file))

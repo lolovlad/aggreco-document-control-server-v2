@@ -94,4 +94,6 @@ class TimeLine(BaseModel):
     time: datetime
 
 
-
+class FileAccident(BaseModel):
+    path: str
+    name: str

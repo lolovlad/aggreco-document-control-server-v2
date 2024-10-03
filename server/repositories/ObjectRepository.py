@@ -96,3 +96,8 @@ class ObjectRepository:
             await self.__session.commit()
         except Exception:
             await self.__session.rollback()
+
+    async def get_all_uuid_obj(self) -> list:
+        response = select(Object.uuid, Object.name)
+        result = await self.__session.execute(response)
+        return result.fetchall()

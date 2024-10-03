@@ -32,7 +32,7 @@ async def get_document_by_uuid(uuid: str,
         )
 
 
-@router.post("/", responses={status.HTTP_201_CREATED: {"message": "create document"},
+@router.post("", responses={status.HTTP_201_CREATED: {"message": "create document"},
                              status.HTTP_406_NOT_ACCEPTABLE: {"message": "not admin"}})
 async def add_document(document: DocumentPost,
                        document_service: DocumentService = Depends(),
@@ -119,7 +119,7 @@ async def delete_document(uuid: str,
                             content={"message": "отказ в доступе"})
 
 
-@router.put("/", responses={
+@router.put("", responses={
     status.HTTP_205_RESET_CONTENT: {},
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}

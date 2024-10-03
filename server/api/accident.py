@@ -2,7 +2,15 @@ from fastapi import APIRouter, Depends, status, Request, Response, UploadFile, F
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from ..services import AccidentService, get_current_user
-from ..models.Accident import GetTypeBrake, GetLightweightAccident, PostAccident, GetAccident, UpdateAccident, TimeLine
+from ..models.Accident import (
+    GetTypeBrake,
+    GetLightweightAccident,
+    PostAccident,
+    GetAccident,
+    UpdateAccident,
+    TimeLine,
+    FileAccident
+)
 from ..models.Message import Message
 from ..models.User import UserGet
 from ..models.Event import GetEvent, PostEvent, UpdateEvent, StateEvent, TypeEvent
@@ -79,7 +87,7 @@ async def get_page_accident(
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
 
-@router.post("/", responses={
+@router.post("", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_201_CREATED: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
@@ -334,3 +342,46 @@ async def get_type_event(service: AccidentService = Depends()):
     else:
         JSONResponse(content={"message": "Не найдено"},
                      status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.get("/files/{uuid_accident}", response_model=list[FileAccident], responses={
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    status.HTTP_404_NOT_FOUND: {"model": Message},
+})
+async def get_files_to_accident(uuid_accident: str,
+                                service: AccidentService = Depends()):
+    list_file_accident = await service.get_file_accident(uuid_accident)
+    if list_file_accident is not None:
+        return list_file_accident
+    else:
+        JSONResponse(content={"message": "Не найдено"},
+                     status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.post("/files/{uuid_accident}", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_201_CREATED: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def add_file_accident(uuid_accident: str,
+                            file: UploadFile = File(...),
+                            service: AccidentService = Depends(),
+                            current_user: UserGet = Depends(get_current_user)
+                            ):
+    info = await service.add_file_accident(uuid_accident, file)
+    return JSONResponse(content={"message": "добавлено"},
+                        status_code=status.HTTP_201_CREATED)
+
+
+@router.delete("/files/{uuid_accident}/{name_file}", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_200_OK: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def delete_file(uuid_accident: str,
+                      name_file: str,
+                      service: AccidentService = Depends(),
+                      current_user: UserGet = Depends(get_current_user)):
+    info = await service.delete_file(uuid_accident, name_file)
+    return JSONResponse(content={"message": "Удалить"},
+                        status_code=status.HTTP_200_OK)

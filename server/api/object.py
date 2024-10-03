@@ -25,7 +25,7 @@ async def get_state_object(service: ObjectService = Depends()):
     return state
 
 
-@router.post("/", responses={
+@router.post("", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_201_CREATED: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
@@ -233,7 +233,7 @@ async def get_one_equipment(uuid: str,
                                 status_code=status.HTTP_404_NOT_FOUND)
 
 
-@router.post("/{uuid}/equipment/", responses={
+@router.post("/{uuid}/equipment", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_201_CREATED: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
@@ -297,7 +297,7 @@ async def update_equipment(uuid: str,
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
 
-@router.get("/{uuid}/users/", response_model=list[UserGet],
+@router.get("/{uuid}/users", response_model=list[UserGet],
             responses={
                 status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},

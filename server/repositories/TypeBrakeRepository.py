@@ -21,7 +21,12 @@ class TypeBrakeRepository:
         result = await self.__session.execute(response)
         return result.scalars().all()
 
-    async def add_list_type_blake(self, list_brake: list[TypeBrake]):
+    async def get_all_type_brake_by_class_id(self, class_id: int) -> list[TypeBrake] | None:
+        response = select(TypeBrake).where(TypeBrake.id_type == class_id)
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
+    async def add_list_type_brake(self, list_brake: list[TypeBrake]):
         try:
             self.__session.add_all(list_brake)
             await self.__session.commit()
@@ -31,5 +36,15 @@ class TypeBrakeRepository:
 
     async def get_brakes_by_uuid_set(self, uuid_list: list[str]) -> list[TypeBrake]:
         response = select(TypeBrake).where(TypeBrake.id.in_(uuid_list))
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
+    async def get_all_class_brake(self) -> list[ClassBrake]:
+        response = select(ClassBrake)
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
+    async def get_all_type_brake(self) -> list[TypeBrake]:
+        response = select(TypeBrake)
         result = await self.__session.execute(response)
         return result.scalars().all()
