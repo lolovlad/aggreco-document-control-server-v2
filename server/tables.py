@@ -217,6 +217,8 @@ class Accident(base):
 
     event = relationship(Event, back_populates="accident", lazy="joined")
 
+    additional_material = Column(String, nullable=True, default="")
+
     id_state_accident = Column(ForeignKey("state_accident.id"))
     state_accident = relationship(StateAccident, lazy="joined")
 
