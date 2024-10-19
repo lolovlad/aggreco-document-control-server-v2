@@ -1,8 +1,26 @@
 from sqlalchemy import select, func
 from asyncio import run
 from server.database import async_session
-from server.tables import User, TypeUser, StateObject, TypeEquipment, ClassBrake, TypeEvent, StateEvent
+from server.tables import User, TypeUser, StateObject, TypeEquipment, ClassBrake, TypeEvent, StateEvent, Profession
 from uuid import uuid4
+
+
+async def create_prof():
+    async with async_session() as session:
+        try:
+            response = select(func.count(Profession.id))
+            result = await session.execute(response)
+            count = result.scalars().first()
+            if count == 0:
+                prof = Profession(
+                    name="unknown",
+                    description="Неизвестно"
+                )
+
+                session.add(prof)
+                await session.commit()
+        finally:
+            await session.close()
 
 
 async def create_user_contest():
@@ -120,5 +138,6 @@ async def main():
     await create_object_context()
     await create_class_brake_context()
     await create_event_context()
+    await create_prof()
 
 run(main())

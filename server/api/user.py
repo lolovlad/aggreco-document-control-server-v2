@@ -6,7 +6,7 @@ from starlette.templating import Jinja2Templates
 from ..services import UserService, get_current_user
 from ..models.Document import DocumentPost
 from ..models.Message import Message
-from ..models.User import UserGet, UserPost, GetTypeUser, UserUpdate
+from ..models.User import UserGet, UserPost, GetTypeUser, UserUpdate, Profession
 
 
 router = APIRouter(prefix="/user", tags=["user"])
@@ -168,5 +168,68 @@ async def delete_user(uuid: str,
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
 
-async def get_list_user_by_document():
-    pass
+@router.get("/profession", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+}, response_model=list[Profession])
+async def get_user_profession(user_service: UserService = Depends(),
+                              current_user: UserGet = Depends(get_current_user)):
+    if current_user.type.name == "admin":
+        prof_users = await user_service.get_profession_user()
+        return prof_users
+
+
+@router.post("/profession", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def add_profession(prof: Profession,
+                         user_service: UserService = Depends(),
+                         current_user: UserGet = Depends(get_current_user)):
+    if current_user.type.name == "admin":
+        prof_users = await user_service.add_profession(prof.name, prof.description)
+        return JSONResponse(content={"message": "добавлено"},
+                            status_code=status.HTTP_201_CREATED)
+    else:
+        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+
+
+@router.delete("/profession/{id_prof}", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def delete_profession(id_prof: int,
+                            user_service: UserService = Depends(),
+                            current_user: UserGet = Depends(get_current_user)):
+    if current_user.type.name == "admin":
+        prof = await user_service.delete_prof(id_prof)
+        if prof:
+            return JSONResponse(status_code=status.HTTP_200_OK,
+                                content={"message": "Удалено"})
+        else:
+            return JSONResponse(content={"message": "ошибка удаление"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+
+
+@router.get("/get/profile", response_model=UserGet)
+async def get_user_by_token(user_service: UserService = Depends(),
+                            current_user: UserGet = Depends(get_current_user)):
+    return current_user
+
+
+@router.get("/file/signature", response_model=dict)
+async def get_signature(user_service: UserService = Depends(),
+                        current_user: UserGet = Depends(get_current_user)):
+    file = await user_service.get_signature(current_user)
+    return file
+
+
+@router.post("/file/signature")
+async def add_signature(file: UploadFile,
+                        user_service: UserService = Depends(),
+                        current_user: UserGet = Depends(get_current_user)):
+    await user_service.upload_signature(current_user, file)
+    return {"filenames": file.filename}
+

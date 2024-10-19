@@ -32,6 +32,11 @@ class UserRepository:
         result = await self.__session.execute(response)
         return result.scalars().all()
 
+    async def get_all_prof_user(self) -> list[Profession]:
+        response = select(Profession)
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
     async def add(self, user: User):
         try:
             self.__session.add(user)
@@ -110,3 +115,18 @@ class UserRepository:
 
         await self.__session.commit()
 
+    async def delete_prof(self, id_prof: int) -> bool:
+        response = select(func.count(User.id)).where(User.id_profession == id_prof)
+        result = await self.__session.execute(response)
+        count = result.scalars().first()
+        if count > 0:
+            return False
+        else:
+            prof = await self.__session.get(Profession, id_prof)
+            try:
+                await self.__session.delete(prof)
+                await self.__session.commit()
+                return True
+            except:
+                await self.__session.rollback()
+                return False

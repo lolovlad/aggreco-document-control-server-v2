@@ -1,17 +1,19 @@
 from fastapi import Depends, UploadFile
 
-from ..repositories import UserRepository
+from ..repositories import UserRepository, FileBucketRepository
 from ..models.User import *
-from ..tables import User, Profession
+from ..tables import User, Profession as ProfessionORM
 import csv
 from io import StringIO
 import aiofiles
 from uuid import uuid4
+import base64
 
 
 class UserService:
     def __init__(self, user_rep: UserRepository = Depends()):
         self.__user_repo: UserRepository = user_rep
+        self.__file_repo: FileBucketRepository = FileBucketRepository("user")
         self.__count_item: int = 20
 
     @property
@@ -42,6 +44,7 @@ class UserService:
             patronymic=user.patronymic,
             email=user.email,
             id_type=user.id_type,
+            id_profession=user.id_profession
         )
         entity.password = user.password
         try:
@@ -49,12 +52,16 @@ class UserService:
         except Exception:
             raise Exception
 
-    async def add_profession(self, name: str) -> Profession:
-        entity = Profession(name=name)
+    async def add_profession(self, name: str, description: str) -> ProfessionORM:
+        entity = ProfessionORM(name=name, description=description)
         prof = await self.__user_repo.add_prof_user(entity)
         if prof is None:
             prof = await self.__user_repo.get_prof_by_name(name)
         return prof
+
+    async def get_profession_user(self) -> list[Profession]:
+        prof_users = await self.__user_repo.get_all_prof_user()
+        return [Profession.model_validate(obj, from_attributes=True) for obj in prof_users]
 
     async def export_user_from_csv(self, file: UploadFile):
         try:
@@ -137,3 +144,37 @@ class UserService:
 
     async def delete_user(self, uuid: str):
         await self.__user_repo.delete(uuid)
+
+    async def delete_prof(self, id_prof: int) -> bool:
+        is_del = await self.__user_repo.delete_prof(id_prof)
+        return is_del
+
+    async def upload_signature(self, user: UserGet, file: UploadFile):
+        ext = file.filename.split(".")[1]
+        dir_name = f"{user.surname}_{user.name}_{user.patronymic}_{user.uuid}"
+
+        file_key = f"{dir_name}/signature.{ext}"
+
+        user = await self.__user_repo.get_user_by_uuid(user.uuid)
+        user.painting = file_key
+
+        content = await file.read()
+        await self.__file_repo.upload_file(file_key,
+                                           content,
+                                           file.content_type)
+
+        await self.__user_repo.update(user)
+
+    async def get_signature(self, user: UserGet):
+        user = await self.__user_repo.get_user_by_uuid(user.uuid)
+        if user.painting is not None:
+            exp = user.painting.split(".")[-1]
+            file = await self.__file_repo.get_file(user.painting)
+            return {
+                "file": str(base64.b64encode(file)[0]),
+                "exp": exp
+            }
+        return {
+            "file": None,
+            "exp": None
+        }

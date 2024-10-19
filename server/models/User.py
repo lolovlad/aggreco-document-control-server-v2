@@ -2,6 +2,12 @@ from pydantic import BaseModel, UUID4, field_serializer
 from datetime import datetime
 
 
+class Profession(BaseModel):
+    id: int | None = None
+    name: str
+    description: str | None = ""
+
+
 class TypeUser(BaseModel):
     name: str
     description: str | None = ""
@@ -17,11 +23,13 @@ class UserBase(BaseModel):
     name: str | None
     surname: str | None
     patronymic: str | None
+    id_profession: int | None
 
 
 class UserGet(UserBase):
     uuid: UUID4
     type: GetTypeUser
+    profession: Profession | None
 
     @field_serializer('uuid')
     def serialize_uuid(self, uuid: UUID4, _info):

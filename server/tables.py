@@ -1,4 +1,15 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Boolean, Float, Date
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    ForeignKey,
+    Boolean,
+    Float,
+    Date
+)
+
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from uuid import uuid4
 from datetime import datetime
@@ -7,6 +18,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
+
 
 base = declarative_base()
 
@@ -40,6 +52,8 @@ class User(base):
     id_profession = Column(Integer, ForeignKey("profession.id"))
     type = relationship("TypeUser", lazy="joined")
     profession = relationship("Profession", lazy="joined")
+
+    painting = Column(String, nullable=True, default="")
 
     is_deleted = Column(Boolean, nullable=True, default=False)
 
@@ -174,6 +188,13 @@ class Event(base):
     type_event = relationship(TypeEvent, lazy="joined")
 
 
+class StateAccident(base):
+    __tablename__ = "state_accident"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    name = Column(String(32), nullable=False, unique=True)
+    description = Column(String(128), nullable=True)
+
+
 class Accident(base):
     __tablename__ = "accident"
     id = Column(Integer, autoincrement=True, primary_key=True)
@@ -196,7 +217,8 @@ class Accident(base):
 
     event = relationship(Event, back_populates="accident", lazy="joined")
 
-    additional_material = Column(String, nullable=True)
+    id_state_accident = Column(ForeignKey("state_accident.id"))
+    state_accident = relationship(StateAccident, lazy="joined")
 
 
 class TypeBrakeToAccident(base):
@@ -209,4 +231,3 @@ class EquipmentToAccident(base):
     __tablename__ = "equipment_to_accident"
     id_accident = Column(ForeignKey("accident.id"), primary_key=True)
     id_equipment = Column(ForeignKey("equipment.id"), primary_key=True)
-

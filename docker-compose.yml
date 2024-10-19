@@ -24,7 +24,7 @@ services:
     volumes:
       - ./data/postgres/pgdata:/var/lib/postgresql/data/pgdata
     env_file:
-      - .env-deploy
+      - .env
   #app:
   #  build:
   #    context: .
@@ -49,3 +49,15 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
+
+  minio:
+    container_name: files_s3
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/data
+    env_file:
+      - .env
+    command: server --console-address ":9001" /data

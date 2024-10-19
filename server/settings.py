@@ -12,7 +12,8 @@ class Settings(BaseSettings):
 
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    jwt_expiration: int = 3600 * 12
+    jwt_expiration_access: int = 60 * 15
+    jwt_expiration_refresh: int = 60 * 60 * 24 * 30
 
     host_server: str
     port_server: int
@@ -23,7 +24,14 @@ class Settings(BaseSettings):
     client_id: str
     client_secret: str
 
-    static_file: str
+    minio_root_user: str
+    minio_root_password: str
+    minio_default_buckets: str
+    minio_host: str
+    minio_port: int
+
+    minio_access_key: str
+    minio_secret_key: str
 
 
 settings = Settings(_env_file='./.env', _env_file_encoding='utf-8')
