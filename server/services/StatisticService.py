@@ -53,9 +53,11 @@ class StatisticService:
         stat = GetAllStatistic()
 
         table = await self.__get_table_accident_all()
-
         for i in statistics:
-            table[str(i.object_uuid)]["type_count"][i.class_brake_id]["count"] = i.accident_count
+            try:
+                table[str(i.object_uuid)]["type_count"][i.class_brake_id]["count"] = i.accident_count
+            except KeyError:
+                continue
 
         stat.obj = table
         return stat
@@ -69,7 +71,10 @@ class StatisticService:
         stat = GetAllStatistic()
 
         for i in statistics:
-            table[str(i.object_uuid)]["type_count"][i.class_brake_id]["count"] = i.accident_count
+            try:
+                table[str(i.object_uuid)]["type_count"][i.class_brake_id]["count"] = i.accident_count
+            except KeyError:
+                continue
 
         stat.obj = table
         return stat
@@ -84,7 +89,10 @@ class StatisticService:
         stat = GetAllStatistic()
 
         for i in statistics:
-            table[i.type_brake_id]["count"] = i.accident_count
+            try:
+                table[i.type_brake_id]["count"] = i.accident_count
+            except KeyError:
+                continue
 
         stat.obj = table
         return stat
