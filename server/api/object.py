@@ -13,7 +13,7 @@ router = APIRouter(prefix="/object", tags=["object"])
 
 message_error = {
     status.HTTP_406_NOT_ACCEPTABLE: JSONResponse(content={"message": "отказ в доступе"},
-                                                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 }
 
 
@@ -73,8 +73,8 @@ async def get_page(response: Response,
             })
 async def get_all_object(current_user: UserGet = Depends(get_current_user),
                          service: ObjectService = Depends()):
-    if current_user.type.name == "admin":
-        return await service.get_all_object()
+    if current_user.type.name in ("admin", "user"):
+        return await service.get_all_object(current_user)
     else:
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
@@ -132,7 +132,7 @@ async def get_one_object(uuid: str,
                          service: ObjectService = Depends(),
                          current_user: UserGet = Depends(get_current_user)
 ):
-    if current_user.type.name == "admin":
+    if current_user.type.name in ("admin", "user"):
         obj = await service.get_one(uuid)
         if obj is not None:
             return obj
@@ -187,13 +187,31 @@ async def get_page_equipment(
         type_equip: str | None = None,
         current_user: UserGet = Depends(get_current_user),
         service: EquipmentService = Depends()):
-    if current_user.type.name == "admin":
+    if current_user.type.name in ("admin", "user"):
         count_page = await service.get_count_page(uuid)
         response.headers["X-Count-Page"] = str(count_page)
         response.headers["X-Count-Item"] = str(service.count_item)
         return await service.get_page_equip(uuid, page)
     else:
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+
+
+@router.get("/{uuid}/equipment/search",
+            response_model=list[GetEquipment],
+            responses={
+                status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+                status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+                status.HTTP_200_OK: {"model": Message}
+            })
+async def search_equipment(
+        uuid: str,
+        search_field: str,
+        count: int = 5,
+        service: EquipmentService = Depends(),
+        current_user: UserGet = Depends(get_current_user)
+):
+    equipment = await service.get_equipment_by_search_field(uuid, search_field, count)
+    return equipment
 
 
 @router.get("/{uuid}/equipment/list", response_model=list[GetEquipment],
@@ -206,11 +224,10 @@ async def get_all_equipment(
         uuid: str,
         current_user: UserGet = Depends(get_current_user),
         service: EquipmentService = Depends()):
-    if current_user.type.name == "admin":
+    if current_user.type.name in ("admin", "user"):
         return await service.get_all_equip(uuid)
     else:
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
-
 
 
 @router.get("/equipment/{uuid}", response_model=GetEquipment,
@@ -224,7 +241,7 @@ async def get_one_equipment(uuid: str,
                             service: EquipmentService = Depends(),
                             current_user: UserGet = Depends(get_current_user)
 ):
-    if current_user.type.name == "admin":
+    if current_user.type.name in ("admin", "user"):
         obj = await service.get_one(uuid)
         if obj is not None:
             return obj

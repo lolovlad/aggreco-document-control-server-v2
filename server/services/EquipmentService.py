@@ -109,3 +109,13 @@ class EquipmentService:
             raise Exception()
         finally:
             await file.close()
+
+    async def get_equipment_by_search_field(self, uuid_object: str, search_filed: str, count: int) -> list[GetEquipment]:
+        data_field = search_filed.replace(" ", "")
+        equipment_entity = await self.__equipment_repo.get_equipment_by_search_field(
+            uuid_object,
+            data_field,
+            count
+        )
+        equipment = [GetEquipment.model_validate(entity, from_attributes=True) for entity in equipment_entity]
+        return equipment

@@ -170,8 +170,9 @@ class UserService:
         if user.painting is not None:
             exp = user.painting.split(".")[-1]
             file = await self.__file_repo.get_file(user.painting)
+            file_encode = base64.b64encode(file).decode("utf-8")
             return {
-                "file": str(base64.b64encode(file)[0]),
+                "file": str(file_encode),
                 "exp": exp
             }
         return {

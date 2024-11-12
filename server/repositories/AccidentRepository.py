@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 
 from fastapi import Depends
 
-from ..tables import Accident, Object
+from ..tables import Accident, Object, StateAccident
 from ..database import get_session
 
 
@@ -43,6 +43,19 @@ class AccidentRepository:
     async def update(self, entity: Accident):
         try:
             self.__session.add(entity)
+            await self.__session.commit()
+        except:
+            await self.__session.rollback()
+            raise Exception
+
+    async def get_state_accident_by_name(self, name: str) -> StateAccident:
+        response = select(StateAccident).where(StateAccident.name == name)
+        result = await self.__session.execute(response)
+        return result.scalars().first()
+
+    async def delete(self, entity: Accident):
+        try:
+            await self.__session.delete(entity)
             await self.__session.commit()
         except:
             await self.__session.rollback()

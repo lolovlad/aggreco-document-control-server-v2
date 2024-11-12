@@ -1,8 +1,45 @@
 from sqlalchemy import select, func
 from asyncio import run
 from server.database import async_session
-from server.tables import User, TypeUser, StateObject, TypeEquipment, ClassBrake, TypeEvent, StateEvent, Profession
+from server.tables import (User,
+                           TypeUser,
+                           StateObject,
+                           TypeEquipment,
+                           ClassBrake,
+                           TypeEvent,
+                           StateEvent,
+                           Profession,
+                           StateAccident,
+                           StateClaim)
 from uuid import uuid4
+
+
+async def create_state_accident():
+    async with async_session() as session:
+        try:
+            response = select(func.count(StateAccident.id))
+            result = await session.execute(response)
+            count = result.scalars().first()
+            if count == 0:
+                clas = StateAccident(
+                    name="empty",
+                    description="Пустой"
+                )
+                class_meh = StateAccident(
+                    name="pending",
+                    description="На рассмотрении"
+                )
+                class_organizational = StateAccident(
+                    name="accepted",
+                    description="Принят"
+                )
+
+                session.add(class_organizational)
+                session.add(class_meh)
+                session.add(clas)
+                await session.commit()
+        finally:
+            await session.close()
 
 
 async def create_prof():
@@ -133,11 +170,47 @@ async def create_event_context():
             await session.close()
 
 
+async def create_state_claim_context():
+    async with async_session() as session:
+        try:
+            response = select(func.count(StateClaim.id))
+            result = await session.execute(response)
+            count = result.scalars().first()
+            if count == 0:
+                one = StateClaim(
+                    name="under_consideration",
+                    description="На рассмотрении"
+                )
+                two = StateClaim(
+                    name="under_development",
+                    description="На доработку"
+                )
+
+                threa = StateClaim(
+                    name="accepted",
+                    description="Принято"
+                )
+                ttt = StateClaim(
+                    name="draft",
+                    description="Черновик"
+                )
+
+                session.add(one)
+                session.add(two)
+                session.add(threa)
+                session.add(ttt)
+                await session.commit()
+        finally:
+            await session.close()
+
+
 async def main():
     await create_user_contest()
     await create_object_context()
     await create_class_brake_context()
     await create_event_context()
     await create_prof()
+    await create_state_accident()
+    await create_state_claim_context()
 
 run(main())

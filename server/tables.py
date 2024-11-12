@@ -233,3 +233,42 @@ class EquipmentToAccident(base):
     __tablename__ = "equipment_to_accident"
     id_accident = Column(ForeignKey("accident.id"), primary_key=True)
     id_equipment = Column(ForeignKey("equipment.id"), primary_key=True)
+
+
+class StateClaim(base):
+    __tablename__ = "state_claim"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    name = Column(String(32), nullable=False, unique=True)
+    description = Column(String(128), nullable=True)
+
+
+class Claim(base):
+    __tablename__ = "claim"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
+
+    datetime = Column(DateTime(timezone=True), nullable=False)
+
+    id_state_claim = Column(ForeignKey("state_claim.id"))
+    state_claim = relationship(StateClaim, lazy="joined")
+
+    id_user = Column(ForeignKey("user.id"))
+    user = relationship(User, lazy="joined")
+
+    main_document = Column(String, nullable=True)
+
+    edit_document = Column(String, nullable=True)
+
+    comment = Column(Text, nullable=True, default="Нет")
+
+    id_accident = Column(ForeignKey("accident.id"))
+    accident = relationship(Accident, lazy="joined", cascade="all, delete")
+
+
+class FileDocument(base):
+    __tablename__ = "file_document"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+
+    file_key = Column(String, nullable=False)
+    file_name = Column(String, nullable=False)
+    datetime = Column(DateTime(timezone=True), nullable=False, default=datetime.now())

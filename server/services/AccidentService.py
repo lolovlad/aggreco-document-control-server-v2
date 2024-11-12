@@ -1,6 +1,7 @@
 from fastapi import Depends, UploadFile
 from ..models.Accident import *
 from ..models.Event import *
+from ..models.User import UserGet
 from ..tables import ClassBrake as ClassBrakeORM, TypeBrake as TypeBrakeORM, Accident, Event
 
 from ..repositories import AccidentRepository, TypeBrakeRepository, ObjectRepository, EquipmentRepository, EventRepository
@@ -83,9 +84,11 @@ class AccidentService:
         finally:
             await file.close()
 
-    async def add_accident(self, accident: PostAccident):
+    async def add_accident(self, accident: PostAccident) -> Accident:
         obj = await self.__object_repo.get_by_uuid(accident.object)
         equipments = await self.__equipment_repo.get_equipment_by_uuid_set(accident.equipments)
+
+        state_accident = await self.__accident_repo.get_state_accident_by_name("empty")
 
         entity = Accident(
             id_object=obj.id,
@@ -94,11 +97,13 @@ class AccidentService:
             time_line={},
             causes_of_the_emergency="Нет",
             damaged_equipment_material="Нет",
-            additional_material="Нет"
+            additional_material="Нет",
+            id_state_accident=state_accident.id
         )
         entity.damaged_equipment.extend(equipments)
 
         await self.__accident_repo.add(entity)
+        return entity
 
     async def get_one(self, uuid_accident: str) -> GetAccident | None:
         entity = await self.__accident_repo.get_by_uuid(uuid_accident)
@@ -106,7 +111,11 @@ class AccidentService:
             return None
         return GetAccident.model_validate(entity, from_attributes=True)
 
-    async def update_accident(self, uuid_accident: str, target: UpdateAccident):
+    async def update_accident(self,
+                              uuid_accident: str,
+                              target: UpdateAccident,
+                              user: UserGet,
+                              state_accident: str | None = "empty"):
         entity = await self.__accident_repo.get_by_uuid(uuid_accident)
         entity.damaged_equipment = []
         entity.type_brakes = []
@@ -116,6 +125,13 @@ class AccidentService:
         equipments = await self.__equipment_repo.get_equipment_by_uuid_set(target.equipments)
         types_brake = await self.__type_brake_repo.get_brakes_by_uuid_set(target.type_brakes)
 
+        if user.type.name == "admin":
+            state_accident_obj = await self.__accident_repo.get_state_accident_by_name("empty")
+            if len(types_brake) > 0:
+                state_accident_obj = await self.__accident_repo.get_state_accident_by_name("accepted")
+        else:
+            state_accident_obj = await self.__accident_repo.get_state_accident_by_name("empty")
+
         entity.id_object = object.id
         entity.damaged_equipment = equipments
         entity.datetime_start = target.datetime_start
@@ -124,6 +140,7 @@ class AccidentService:
         entity.causes_of_the_emergency = target.causes_of_the_emergency
         entity.damaged_equipment_material = target.damaged_equipment_material
         entity.additional_material = target.additional_material
+        entity.id_state_accident = state_accident_obj.id
 
         await self.__accident_repo.update(entity)
 

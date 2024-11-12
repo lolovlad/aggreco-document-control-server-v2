@@ -21,10 +21,16 @@ class ObjectRepository:
         result = await self.__session.execute(response)
         return result.scalars().all()
 
-    async def get_all_object(self) -> list[Object]:
-        response = select(Object).where(Object.is_deleted == False).order_by(Object.id)
+    async def get_all_object(self, filter_user: int) -> list[Object]:
+        if filter_user == 0:
+            response = select(Object).where(Object.is_deleted == False).order_by(Object.id)
+        else:
+            response = (select(Object)
+                        .join(ObjectToUser)
+                        .where(Object.is_deleted == False)
+                        .where(ObjectToUser.id_user == filter_user))
         result = await self.__session.execute(response)
-        return result.scalars().all()
+        return result.unique().scalars().all()
 
     async def get_all_state_object(self) -> list[StateObject]:
         response = select(StateObject)

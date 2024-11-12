@@ -1,5 +1,5 @@
 from fastapi import Depends
-from ..minio import async_session
+from ..minio import async_session, session
 from miniopy_async import Minio
 from miniopy_async.helpers import ObjectWriteResult
 from miniopy_async.deleteobjects import DeleteObject
@@ -12,6 +12,7 @@ import aiohttp
 class FileBucketRepository:
     def __init__(self, name: str):
         self.__client: Minio = async_session
+        self.__client_download = session
         self.__name_bucket: str = name
 
     async def create_bucket(self):
@@ -67,3 +68,16 @@ class FileBucketRepository:
             file = await self.__client.get_object(self.__name_bucket, file_key, session)
             content = await file.read()
             return content
+
+    async def get_sate(self, file_key: str):
+        info = await self.__client.stat_object(self.__name_bucket, file_key)
+        return info
+
+    def get_file_stream(self, file_key: str, size: int):
+        offset = 0
+        while True:
+            response = self.__client_download.get_object(self.__name_bucket, file_key, offset=offset, length=2048)
+            yield response.read()
+            offset = offset + 2048
+            if offset >= size:
+                break

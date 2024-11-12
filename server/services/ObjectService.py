@@ -38,8 +38,14 @@ class ObjectService:
         objects = [GetObject.model_validate(entity, from_attributes=True) for entity in entity]
         return objects
 
-    async def get_all_object(self) -> list[GetObject]:
-        entity = await self.__object_repo.get_all_object()
+    async def get_all_object(self, user: UserGet) -> list[GetObject]:
+        if user.type.name == "admin":
+            filter_user = 0
+        else:
+            user = await self.__user_repo.get_user_by_uuid(user.uuid)
+            filter_user = user.id
+
+        entity = await self.__object_repo.get_all_object(filter_user)
         objects = [GetObject.model_validate(entity, from_attributes=True) for entity in entity]
         return objects
 

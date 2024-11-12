@@ -129,20 +129,14 @@ async def get_one_accident(uuid: str,
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
     status.HTTP_200_OK: {"model": Message},
 })
-async def update_equipment(uuid: str,
-                           target_accident: UpdateAccident,
-                           service: AccidentService = Depends(),
-                           current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        try:
-            await service.update_accident(uuid, target_accident)
-            return JSONResponse(content={"message": "Обновленно"},
-                                status_code=status.HTTP_200_OK)
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+async def update_accident(uuid: str,
+                          target_accident: UpdateAccident,
+                          service: AccidentService = Depends(),
+                          current_user: UserGet = Depends(get_current_user)):
+
+    await service.update_accident(uuid, target_accident, current_user)
+    return JSONResponse(content={"message": "Обновленно"},
+                        status_code=status.HTTP_200_OK)
 
 
 @router.post("/{uuid}/time_line", responses={
@@ -153,15 +147,12 @@ async def add_time_line_item(uuid: str,
                              target: TimeLine,
                              service: AccidentService = Depends(),
                              current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        try:
-            time_line_series = await service.add_time_line(uuid, target)
-            return time_line_series
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        time_line_series = await service.add_time_line(uuid, target)
+        return time_line_series
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/{uuid}/time_line", responses={
@@ -173,13 +164,12 @@ async def get_time_line(uuid: str,
                         service: AccidentService = Depends(),
                         current_user: UserGet = Depends(get_current_user)
 ):
-    if current_user.type.name == "admin":
-        time_line_series = await service.get_time_line(uuid)
-        if time_line_series is not None:
-            return time_line_series
-        else:
-            return JSONResponse(content={"message": " не существует"},
-                                status_code=status.HTTP_404_NOT_FOUND)
+    time_line_series = await service.get_time_line(uuid)
+    if time_line_series is not None:
+        return time_line_series
+    else:
+        return JSONResponse(content={"message": " не существует"},
+                            status_code=status.HTTP_404_NOT_FOUND)
 
 
 @router.put("/{uuid}/time_line", responses={
@@ -191,15 +181,12 @@ async def update_time_line(uuid: str,
                            target_time_line: TimeLine,
                            service: AccidentService = Depends(),
                            current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        try:
-            time_line_target = await service.update_time_line(uuid, target_time_line)
-            return time_line_target
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        time_line_target = await service.update_time_line(uuid, target_time_line)
+        return time_line_target
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.delete("/{uuid}/time_line/{uuid_time_line}", responses={
@@ -211,15 +198,12 @@ async def delete_time_line(uuid: str,
                            uuid_time_line: str,
                            service: AccidentService = Depends(),
                            current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        try:
-            time_line_target = await service.delete_time_line(uuid, uuid_time_line)
-            return time_line_target
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        time_line_target = await service.delete_time_line(uuid, uuid_time_line)
+        return time_line_target
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.post("/{uuid}/event", responses={
@@ -230,15 +214,12 @@ async def add_event(uuid: str,
                     target: PostEvent,
                     service: AccidentService = Depends(),
                     current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        try:
-            event_list = await service.add_event(uuid, target)
-            return event_list
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        event_list = await service.add_event(uuid, target)
+        return event_list
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/{uuid}/event", responses={
@@ -250,13 +231,12 @@ async def get_events(uuid: str,
                      service: AccidentService = Depends(),
                      current_user: UserGet = Depends(get_current_user)
 ):
-    if current_user.type.name == "admin":
-        list_event = await service.get_list_event(uuid)
-        if list_event is not None:
-            return list_event
-        else:
-            return JSONResponse(content={"message": " не существует"},
-                                status_code=status.HTTP_404_NOT_FOUND)
+    list_event = await service.get_list_event(uuid)
+    if list_event is not None:
+        return list_event
+    else:
+        return JSONResponse(content={"message": " не существует"},
+                            status_code=status.HTTP_404_NOT_FOUND)
 
 
 @router.get("/{uuid}/event/{uuid_event}", responses={
@@ -269,13 +249,12 @@ async def get_one_event(uuid: str,
                         service: AccidentService = Depends(),
                         current_user: UserGet = Depends(get_current_user)
 ):
-    if current_user.type.name == "admin":
-        event = await service.get_one_event(uuid_event)
-        if event is not None:
-            return event
-        else:
-            return JSONResponse(content={"message": " не существует"},
-                                status_code=status.HTTP_404_NOT_FOUND)
+    event = await service.get_one_event(uuid_event)
+    if event is not None:
+        return event
+    else:
+        return JSONResponse(content={"message": " не существует"},
+                            status_code=status.HTTP_404_NOT_FOUND)
 
 
 @router.put("/{uuid}/event", responses={
@@ -287,15 +266,12 @@ async def update_event(uuid: str,
                        target_event: UpdateEvent,
                        service: AccidentService = Depends(),
                        current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        try:
-            list_event = await service.update_event(uuid, target_event)
-            return list_event
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        list_event = await service.update_event(uuid, target_event)
+        return list_event
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.delete("/{uuid}/event/{uuid_event}", responses={
@@ -307,15 +283,12 @@ async def delete_time_line(uuid: str,
                            uuid_event: str,
                            service: AccidentService = Depends(),
                            current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        try:
-            list_event = await service.delete_event(uuid, uuid_event)
-            return list_event
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        list_event = await service.delete_event(uuid, uuid_event)
+        return list_event
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/event/state_event", response_model=list[StateEvent], responses={

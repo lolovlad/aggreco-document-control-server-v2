@@ -6,6 +6,12 @@ from .Equipment import GetEquipment
 from .Event import GetEvent
 
 
+class StateAccidentModel(BaseModel):
+    id: int
+    name: str
+    description: str | None
+
+
 class ClassBrake(BaseModel):
     id: int
     name: str
@@ -29,6 +35,7 @@ class PostTypeBrake(BaseTypeBrake):
 
 class BaseAccident(BaseModel):
     id_object: int
+    id_state_accident: int | None
     datetime_start: datetime
     datetime_end: datetime | None
     additional_material: str | None
@@ -37,6 +44,7 @@ class BaseAccident(BaseModel):
 class GetLightweightAccident(BaseAccident):
     uuid: UUID4
     object: GetObject
+    state_accident: StateAccidentModel | None
 
     damaged_equipment: list[GetEquipment]
 
@@ -75,6 +83,7 @@ class PostAccident(BaseModel):
     datetime_start: datetime
     datetime_end: datetime | None
     equipments: list[str]
+    id_state_accident: int | None = 1
 
 
 class UpdateAccident(BaseModel):
@@ -85,7 +94,8 @@ class UpdateAccident(BaseModel):
     type_brakes: list[int] | None
     causes_of_the_emergency: str
     damaged_equipment_material: str
-    additional_material: str
+    additional_material: str | None
+    id_state_accident: int | None
 
 
 class TimeLine(BaseModel):
