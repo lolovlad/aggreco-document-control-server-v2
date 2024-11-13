@@ -17,7 +17,10 @@ class TypeBrakeRepository:
         return result.scalars().first()
 
     async def get_all_type_brake_by_class(self, class_name: str) -> list[TypeBrake] | None:
-        response = select(TypeBrake).join(ClassBrake).where(ClassBrake.name == class_name)
+        if class_name == "org":
+            response = select(TypeBrake).join(ClassBrake).where(ClassBrake.name != "meh")
+        else:
+            response = select(TypeBrake).join(ClassBrake).where(ClassBrake.name == class_name)
         result = await self.__session.execute(response)
         return result.scalars().all()
 

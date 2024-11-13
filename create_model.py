@@ -124,12 +124,17 @@ async def create_class_brake_context():
                     description="механические"
                 )
                 class_organizational = ClassBrake(
-                    name="org",
-                    description="организационные"
+                    name="external_organizational",
+                    description="Внешние организационные"
+                )
+                class_organizational_1 = ClassBrake(
+                    name="domestic_organizational",
+                    description="Внутренние организационные"
                 )
 
                 session.add(class_organizational)
                 session.add(class_meh)
+                session.add(class_organizational_1)
                 await session.commit()
         finally:
             await session.close()
