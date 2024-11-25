@@ -3,10 +3,12 @@ from ..minio import async_session, session
 from miniopy_async import Minio
 from miniopy_async.helpers import ObjectWriteResult
 from miniopy_async.deleteobjects import DeleteObject
-from ..settings import settings
 from pathlib import Path
 from io import BytesIO
 import aiohttp
+
+from uuid import uuid4
+from ..settings import settings
 
 
 class FileBucketRepository:
@@ -81,3 +83,9 @@ class FileBucketRepository:
             offset = offset + 2048
             if offset >= size:
                 break
+
+    async def get_and_save_file(self, file_key: str) -> str:
+        exp = file_key.split(".")[-1]
+        name_save_file = f"{settings.root_path}/files/{uuid4()}.{exp}"
+        await self.__client.fget_object(self.__name_bucket, file_key, name_save_file)
+        return name_save_file

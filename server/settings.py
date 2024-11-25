@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 
+import os
 
 class Settings(BaseSettings):
 
@@ -32,6 +33,8 @@ class Settings(BaseSettings):
 
     minio_access_key: str
     minio_secret_key: str
+
+    root_path: str = os.path.dirname(os.path.abspath(__file__))
 
 
 settings = Settings(_env_file='./.env', _env_file_encoding='utf-8')

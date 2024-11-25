@@ -7,7 +7,7 @@ from ..repositories import FileBucketRepository
 
 from ..models.Message import Message
 from ..models.User import UserGet
-from ..models.Files import GetFile
+from ..models.Files import GetFile, FileGenerate
 
 router = APIRouter(prefix="/file", tags=["file"])
 message_error = {
@@ -59,3 +59,13 @@ async def get_file(id_file: int,
         media_type=media_type,
         headers=headers,
     )
+
+
+@router.post("/generate/{uuid_claim}")
+async def generate_file(uuid_claim: str,
+                        generate_data: FileGenerate,
+                        current_user: UserGet = Depends(get_current_user),
+                        service: FileService = Depends()):
+
+    response = await service.generate_document(uuid_claim, generate_data)
+    return response
