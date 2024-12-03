@@ -167,7 +167,7 @@ class UserService:
 
     async def get_signature(self, user: UserGet):
         user = await self.__user_repo.get_user_by_uuid(user.uuid)
-        if user.painting is not None:
+        if user.painting is not None and len(user.painting) > 0:
             exp = user.painting.split(".")[-1]
             file = await self.__file_repo.get_file(user.painting)
             file_encode = base64.b64encode(file).decode("utf-8")

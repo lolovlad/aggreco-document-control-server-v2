@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 
 from fastapi import Depends
 
@@ -79,7 +79,8 @@ class EquipmentRepository:
     async def get_equipment_by_search_field(self, uuid_object: str, name_equipment: str, count: int) -> list[Equipment]:
         response = (select(Equipment)
                     .join(Object).where(Object.uuid == uuid_object)
-                    .where(Equipment.name.ilike(f'%{name_equipment}%')).
+                    .where(or_(Equipment.name.ilike(f'%{name_equipment}%'),
+                               Equipment.code.ilike(f'%{name_equipment}%'))).
                     limit(count).
                     order_by(Equipment.id))
         result = await self.__session.execute(response)

@@ -24,9 +24,8 @@ message_error = {
 }, response_model=list[GetTypeUser])
 async def get_type_user(user_service: UserService = Depends(),
                         current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        type_users = await user_service.get_type_users()
-        return type_users
+    type_users = await user_service.get_type_users()
+    return type_users
 
 
 @router.get("/get_one/{uuid}", responses={
@@ -37,13 +36,12 @@ async def get_one_user(uuid: str,
                        user_service: UserService = Depends(),
                        current_user: UserGet = Depends(get_current_user)
                        ):
-    if current_user.type.name == "admin":
-        user = await user_service.get_user(uuid)
-        if user is not None:
-            return user
-        else:
-            return JSONResponse(content={"message": "Пользователя не существует"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    user = await user_service.get_user(uuid)
+    if user is not None:
+        return user
+    else:
+        return JSONResponse(content={"message": "Пользователя не существует"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.post("", responses={
@@ -174,9 +172,8 @@ async def delete_user(uuid: str,
 }, response_model=list[Profession])
 async def get_user_profession(user_service: UserService = Depends(),
                               current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name == "admin":
-        prof_users = await user_service.get_profession_user()
-        return prof_users
+    prof_users = await user_service.get_profession_user()
+    return prof_users
 
 
 @router.post("/profession", responses={
