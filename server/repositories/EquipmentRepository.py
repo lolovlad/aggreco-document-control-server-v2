@@ -85,3 +85,11 @@ class EquipmentRepository:
                     order_by(Equipment.id))
         result = await self.__session.execute(response)
         return result.scalars().all()
+
+    async def get_by_uuid_object_ande_equipment(self, uuid_object: str, uuid_equipment: str) -> list[Equipment]:
+        response = (select(Equipment)
+                    .join(Object, Equipment.id_object == Object.id)
+                    .where(Equipment.uuid == uuid_equipment)
+                    .where(Object.uuid == uuid_object))
+        result = await self.__session.execute(response)
+        return result.scalars().all()

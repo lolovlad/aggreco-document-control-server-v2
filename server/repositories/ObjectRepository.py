@@ -107,3 +107,16 @@ class ObjectRepository:
         response = select(Object.uuid, Object.name)
         result = await self.__session.execute(response)
         return result.fetchall()
+
+    async def get_registrate_user_by_object(self, user_id: int, object_id: int):
+        response = select(ObjectToUser).where(ObjectToUser.id_object == object_id).where(ObjectToUser.id_user == user_id)
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
+    async def get_object_by_user_uuid(self, uuid_user: str) -> Object | None:
+        response = (select(Object)
+                    .join(ObjectToUser, Object.id == ObjectToUser.id_object)
+                    .join(User, User.id == ObjectToUser.id_user)
+                    .where(User.uuid == uuid_user))
+        result = await self.__session.execute(response)
+        return result.scalars().first()

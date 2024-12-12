@@ -4,16 +4,18 @@ from ..models.User import UserGet
 from ..tables import Object, StateObject as StateObjectORM, Equipment, TypeEquipment
 
 from ..repositories.ObjectRepository import ObjectRepository
-from ..repositories import UserRepository
+from ..repositories import UserRepository, EquipmentRepository
 
 
 class ObjectService:
     def __init__(self,
                  object_repo: ObjectRepository = Depends(),
-                 user_repo: UserRepository = Depends()
+                 user_repo: UserRepository = Depends(),
+                 equipment_repo: EquipmentRepository = Depends()
                  ):
         self.__user_repo: UserRepository = user_repo
         self.__object_repo: ObjectRepository = object_repo
+        self.__equipment_repo: EquipmentRepository = equipment_repo
         self.__count_item: int = 20
 
     @property
@@ -23,6 +25,13 @@ class ObjectService:
     @count_item.setter
     def count_item(self, item):
         self.__count_item = item
+
+    async def is_user_in_object(self, user: UserGet, uuid_equipment: str):
+        obj = await self.__object_repo.get_object_by_user_uuid(user.uuid)
+        if obj is None:
+            return False
+        equip = await self.__equipment_repo.get_by_uuid_object_ande_equipment(obj.uuid, uuid_equipment)
+        return len(equip) > 0
 
     async def get_count_page(self) -> int:
         count_row = await self.__object_repo.count_row()
@@ -104,6 +113,10 @@ class ObjectService:
         if is_add:
             user = await self.__user_repo.get_user_by_uuid(uuid_user)
             obj = await self.__object_repo.get_by_uuid(uuid_object)
+
+            ent = await self.__object_repo.get_registrate_user_by_object(user.id, obj.id)
+            if len(ent) > 0:
+                return False
             try:
                 await self.__object_repo.add_user_to_object(obj, user)
                 return True
@@ -116,3 +129,11 @@ class ObjectService:
             await self.__object_repo.delete_user_to_object(uuid_object, uuid_user)
         except Exception:
             raise Exception
+
+    async def get_object_to_user(self, uuid_user: str) -> GetObject | None:
+        obj = await self.__object_repo.get_object_by_user_uuid(uuid_user)
+        if obj is None:
+            return obj
+        return GetObject.model_validate(obj, from_attributes=True)
+
+
