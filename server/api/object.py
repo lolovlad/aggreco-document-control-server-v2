@@ -261,18 +261,15 @@ async def add_equipment(
         service: EquipmentService = Depends(),
         service_object: ObjectService = Depends(),
         current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name in ("admin", "user"):
-        is_edit = await service_object.is_user_in_object(current_user, uuid)
-        if is_edit:
-            try:
-                await service.create_equip(uuid, equipment_target)
-                return JSONResponse(content={"message": "добавлено"},
-                                    status_code=status.HTTP_201_CREATED)
-            except Exception:
-                return JSONResponse(content={"message": "ошибка добавления"},
-                                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    is_edit = await service_object.is_user_in_object(current_user, uuid)
+    if (is_edit and current_user.type.name == "user") or current_user.type.name == "admin":
+        try:
+            await service.create_equip(uuid, equipment_target)
+            return JSONResponse(content={"message": "добавлено"},
+                                status_code=status.HTTP_201_CREATED)
+        except Exception:
+            return JSONResponse(content={"message": "ошибка добавления"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
@@ -287,18 +284,15 @@ async def delete_equipment(
         service: EquipmentService = Depends(),
         service_object: ObjectService = Depends(),
         current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name in ("admin", "user"):
-        is_edit = await service_object.is_user_in_object(current_user, uuid)
-        if is_edit:
-            try:
-                await service.delete_equip(uuid)
-                return JSONResponse(content={"message": "Удалено"},
-                                    status_code=status.HTTP_200_OK)
-            except Exception:
-                return JSONResponse(content={"message": "ошибка удаления"},
-                                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    is_edit = await service_object.is_user_in_object(current_user, uuid)
+    if (is_edit and current_user.type.name == "user") or current_user.type.name == "admin":
+        try:
+            await service.delete_equip(uuid)
+            return JSONResponse(content={"message": "Удалено"},
+                                status_code=status.HTTP_200_OK)
+        except Exception:
+            return JSONResponse(content={"message": "ошибка удаления"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
@@ -313,18 +307,15 @@ async def update_equipment(uuid: str,
                            service: EquipmentService = Depends(),
                            service_object: ObjectService = Depends(),
                            current_user: UserGet = Depends(get_current_user)):
-    if current_user.type.name in ("admin", "user"):
-        is_edit = await service_object.is_user_in_object(current_user, uuid)
-        if is_edit:
-            try:
-                await service.update_equip(uuid, target_equipment)
-                return JSONResponse(content={"message": "Обновленно"},
-                                    status_code=status.HTTP_200_OK)
-            except Exception:
-                return JSONResponse(content={"message": "ошибка обновления"},
-                                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    is_edit = await service_object.is_user_in_object(current_user, uuid)
+    if (is_edit and current_user.type.name == "user") or current_user.type.name == "admin":
+        try:
+            await service.update_equip(uuid, target_equipment)
+            return JSONResponse(content={"message": "Обновленно"},
+                                status_code=status.HTTP_200_OK)
+        except Exception:
+            return JSONResponse(content={"message": "ошибка обновления"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
