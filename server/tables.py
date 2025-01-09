@@ -40,7 +40,7 @@ class Profession(base):
 class User(base):
     __tablename__ = "user"
     id = Column(Integer, autoincrement=True, primary_key=True)
-    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4())
+    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
 
     name = Column(String, nullable=True)
     surname = Column(String, nullable=True)
