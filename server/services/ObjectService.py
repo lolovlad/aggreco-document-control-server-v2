@@ -26,12 +26,11 @@ class ObjectService:
     def count_item(self, item):
         self.__count_item = item
 
-    async def is_user_in_object(self, user: UserGet, uuid_equipment: str):
+    async def is_user_in_object(self, user: UserGet, uuid_object: str) -> bool:
         obj = await self.__object_repo.get_object_by_user_uuid(user.uuid)
         if obj is None:
             return False
-        equip = await self.__equipment_repo.get_by_uuid_object_ande_equipment(obj.uuid, uuid_equipment)
-        return len(equip) > 0
+        return str(obj.uuid) == uuid_object
 
     async def get_count_page(self) -> int:
         count_row = await self.__object_repo.count_row()
