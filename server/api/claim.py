@@ -73,7 +73,6 @@ async def add_claim(claim: PostClaim,
 
 @router.get("/get/{uuid}", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
-    status.HTTP_200_OK: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 }, response_model=GetClaim)
 async def get_one_claim(uuid: str,
@@ -105,7 +104,11 @@ async def get_file(type_file: str,
                    uuid: str,
                    service: ClaimServices = Depends(),
                    ):
-    file, file_path = await service.get_file(type_file, uuid)
+    try:
+        file, file_path = await service.get_file(type_file, uuid)
+    except Exception:
+        return JSONResponse(content={"message": "не существует"},
+                            status_code=status.HTTP_404_NOT_FOUND)
 
     file_name = file_path.split("/")[-1]
 
@@ -119,13 +122,17 @@ async def get_file(type_file: str,
 
     headers = {"Content-Disposition": f'inline; filename="{file_name}"'}
 
-    info = await file_repo.get_sate(file_path)
+    try:
+        info = await file_repo.get_sate(file_path)
 
-    return StreamingResponse(
-        file_repo.get_file_stream(file_path, info.size),
-        media_type=media_type,
-        headers=headers,
-    )
+        return StreamingResponse(
+            file_repo.get_file_stream(file_path, info.size),
+            media_type=media_type,
+            headers=headers,
+        )
+    except Exception:
+        return JSONResponse(content={"message": "не существует"},
+                            status_code=status.HTTP_404_NOT_FOUND)
 
 
 @router.delete("/{uuid}", responses={

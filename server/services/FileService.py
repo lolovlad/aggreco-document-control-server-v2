@@ -11,6 +11,7 @@ from random import randint
 from functools import partial
 from docxtpl import DocxTemplate, InlineImage
 from io import BytesIO
+from datetime import datetime
 
 
 class FileService:
@@ -21,19 +22,34 @@ class FileService:
         self.__file_repo: FileRepository = file
         self.__claim_service: ClaimServices = claim
 
+    def __get_date_split(self, datetime: datetime) -> dict:
+        date = datetime.strftime("%d.%m.%Y")
+        date_split = date.split('.')
+        return {
+            "date": date,
+            "d": date_split[0],
+            "mm": date_split[1],
+            "y": date_split[2],
+            "h": datetime.hour,
+            "m": datetime.minute,
+            "s": datetime.second
+        }
+
     async def get_all_files(self) -> list[GetFile]:
         files = await self.__file_repo.get_all()
         return [GetFile.model_validate(i, from_attributes=True) for i in files]
 
-    async def upload_file(self, file: UploadFile):
+    async def upload_file(self, file: UploadFile, file_name: str):
         ext = file.filename.split(".")[-1]
-        file_name = f"{randint(1000, 10000)}_шаблон_генерации_file.{ext}"
+        file_name_key = f"{randint(1000, 10000)}_шаблон_генерации_file.{ext}"
 
-        file_key = f"blueprint/{file_name}"
+        file_key = f"blueprint/{file_name_key}"
 
         file_doc = FileDocument(
-            file_key=file_key,
-            file_name=file_name,
+            file_key="Нет",
+            file_name=file_key,
+            name=file_name,
+            size=float(round(file.size / 1024, 2))
         )
 
         content = await file.read()
@@ -60,7 +76,7 @@ class FileService:
     async def generate_document(self, uuid_claim: str, data_generate: FileGenerate) -> dict:
         claim = await self.__claim_service.get_claim(uuid_claim)
         file = await self.__file_repo.get(data_generate.id_blueprint)
-        file_streem = await self.__file_bucket_repo.get_file(file.file_key)
+        file_streem = await self.__file_bucket_repo.get_file(file.file_name)
 
         try:
             blueprint = DocxTemplate(BytesIO(file_streem))
@@ -69,6 +85,20 @@ class FileService:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         dump = claim.model_dump()
+
+        dump["castome"] = {
+            "date": {
+                "start": self.__get_date_split(claim.accident.datetime_start),
+                "end": self.__get_date_split(claim.accident.datetime_end),
+            }
+        }
+
+        dump["accident"]["time_line"] = [
+            {
+                "time": i["time"].strftime("%d.%m.%Y %H:%M"),
+                "val": i["description"]
+            } for i in dump["accident"]["time_line"]
+        ]
 
         blueprint.render(dump)
         blueprint.save(template_file)
@@ -81,7 +111,26 @@ class FileService:
 
         return {"state_file": "upload", "uuid_token": None}
 
+    async def delete_file(self, id_file: int):
+        file = await self.__file_repo.delete(id_file)
+        await self.__file_bucket_repo.delete_file(file.file_name)
 
+    async def get_file_metadata(self, id_blueprint: int) -> GetFile:
+        file = await self.__file_repo.get(id_blueprint)
+        return GetFile.model_validate(file, from_attributes=True)
 
+    async def update_file(self, id_blueprint: int, file: UploadFile | None, file_name: str | None):
+        file_entity = await self.__file_repo.get(id_blueprint)
+        file_entity.name = file_name
+        if file is not None:
+            file_entity.size = float(round(file.size / 1024, 2))
 
+            await self.__file_bucket_repo.delete_file(file_entity.file_name)
+
+            content = await file.read()
+            await self.__file_bucket_repo.upload_file(file_entity.file_name,
+                                                      content,
+                                                      file.content_type)
+
+        await self.__file_repo.update(file_entity)
 

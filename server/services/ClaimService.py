@@ -85,6 +85,11 @@ class ClaimServices:
 
         file_key = f"{dir_name}/{type_file}_file.{ext}"
 
+        try:
+            await self.__file_repo.delete_file(file_key)
+        except Exception:
+            pass
+
         claim = await self.__claim_repo.get_by_uuid(uuid)
         if type_file == "main":
             claim.main_document = file_key

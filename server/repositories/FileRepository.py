@@ -27,3 +27,20 @@ class FileRepository:
         response = select(FileDocument)
         result = await self.__session.execute(response)
         return result.scalars().all()
+
+    async def delete(self, id_file: int) -> FileDocument:
+        file = await self.get(id_file)
+        try:
+            await self.__session.delete(file)
+            await self.__session.commit()
+            return file
+        except Exception:
+            await self.__session.rollback()
+
+    async def update(self, entity: FileDocument):
+        try:
+            self.__session.add(entity)
+            await self.__session.commit()
+        except:
+            await self.__session.rollback()
+            raise Exception

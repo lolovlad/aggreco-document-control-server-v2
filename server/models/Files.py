@@ -6,6 +6,8 @@ from datetime import datetime
 class BaseFile(BaseModel):
     file_name: str
     datetime: datetime
+    name: str | None
+    size: float | None
 
 
 class GetFile(BaseFile):

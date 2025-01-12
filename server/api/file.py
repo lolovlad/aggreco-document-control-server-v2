@@ -1,4 +1,13 @@
-from fastapi import APIRouter, Depends, status, Request, Response, UploadFile, File
+from fastapi import (
+    APIRouter,
+    Depends,
+    status,
+    Request,
+    Response,
+    UploadFile,
+    File,
+    Form)
+from typing import Annotated, Optional
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ..services import get_current_user, FileService
@@ -22,9 +31,10 @@ message_error = {
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 })
 async def save_file(file: UploadFile,
+                    name_file: Annotated[str, Form()],
                     current_user: UserGet = Depends(get_current_user),
                     service: FileService = Depends()):
-    await service.upload_file(file)
+    await service.upload_file(file, name_file)
     return {"filenames": file.filename}
 
 
@@ -69,3 +79,60 @@ async def generate_file(uuid_claim: str,
 
     response = await service.generate_document(uuid_claim, generate_data)
     return response
+
+
+@router.delete("/{id_file}", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_200_OK: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def delete_file(id_file: int,
+                      current_user: UserGet = Depends(get_current_user),
+                      service: FileService = Depends()):
+    if current_user.type.name == "admin":
+        try:
+            await service.delete_file(id_file)
+            return JSONResponse(content={"message": "Файл удален"},
+                                status_code=status.HTTP_200_OK)
+        except Exception:
+            return JSONResponse(content={"message": "Ошибка удаления"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+
+
+@router.get("/metadata/{id_blueprint}", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+}, response_model=GetFile)
+async def get_metadata_file(id_blueprint: int,
+                            current_user: UserGet = Depends(get_current_user),
+                            service: FileService = Depends()):
+    if current_user.type.name == "admin":
+        try:
+            file = await service.get_file_metadata(id_blueprint)
+            return file
+        except Exception:
+            return JSONResponse(content={"message": "Ошибка удаления"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+
+
+@router.put("/{id_blueprint}", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_200_OK: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def update_file(id_blueprint: int,
+                      name_file: Annotated[str, Form(), None],
+                      file: Optional[UploadFile] = File(None),
+                      current_user: UserGet = Depends(get_current_user),
+                      service: FileService = Depends()):
+    try:
+        await service.update_file(id_blueprint, file, name_file)
+        return JSONResponse(content={"message": "Обновлен"},
+                                     status_code=status.HTTP_200_OK)
+    except Exception:
+        return JSONResponse(content={"message": "Ошибка удаления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

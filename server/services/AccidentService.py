@@ -153,7 +153,7 @@ class AccidentService:
             }) for i in target.items()
         ]
 
-        sorted(time_line_series, key=lambda x: x.time)
+        time_line_series = list(sorted(time_line_series, key=lambda x: x.time))
 
         return time_line_series
 

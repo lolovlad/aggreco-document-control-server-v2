@@ -271,4 +271,7 @@ class FileDocument(base):
 
     file_key = Column(String, nullable=False)
     file_name = Column(String, nullable=False)
-    datetime = Column(DateTime(timezone=True), nullable=False, default=datetime.now())
+    datetime = Column(DateTime(timezone=True), nullable=False, default=datetime.now)
+
+    name = Column(String, nullable=True)
+    size = Column(Float, nullable=True)

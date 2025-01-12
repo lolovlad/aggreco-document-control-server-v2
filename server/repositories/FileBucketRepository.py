@@ -72,8 +72,11 @@ class FileBucketRepository:
             return content
 
     async def get_sate(self, file_key: str):
-        info = await self.__client.stat_object(self.__name_bucket, file_key)
-        return info
+        try:
+            info = await self.__client.stat_object(self.__name_bucket, file_key)
+            return info
+        except Exception:
+            return None
 
     def get_file_stream(self, file_key: str, size: int):
         offset = 0
