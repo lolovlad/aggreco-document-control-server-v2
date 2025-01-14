@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 
 from fastapi import Depends
 
-from ..tables import Object, StateObject, User, ObjectToUser
+from ..tables import Object, StateObject, User, ObjectToUser, Equipment
 from ..database import get_session
 
 
@@ -118,5 +118,17 @@ class ObjectRepository:
                     .join(ObjectToUser, Object.id == ObjectToUser.id_object)
                     .join(User, User.id == ObjectToUser.id_user)
                     .where(User.uuid == uuid_user))
+        result = await self.__session.execute(response)
+        return result.scalars().first()
+
+    async def get_object_by_uuid_equipment(self, uuid_user: str, uuid_equipment: str) -> Object | None:
+        response = (select(Object)
+                    .join(Equipment)
+                    .where(Equipment.uuid == uuid_equipment)
+                    .where(Equipment.is_delite == False)
+                    .join(ObjectToUser, Object.id == ObjectToUser.id_object)
+                    .join(User, User.id == ObjectToUser.id_user)
+                    .where(User.uuid == uuid_user)
+                    )
         result = await self.__session.execute(response)
         return result.scalars().first()

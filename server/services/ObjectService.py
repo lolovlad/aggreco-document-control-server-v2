@@ -32,6 +32,12 @@ class ObjectService:
             return False
         return str(obj.uuid) == uuid_object
 
+    async def is_user_in_object_by_uuid_equipment(self, user: UserGet, uuid_equipment: str) -> bool:
+        obj = await self.__object_repo.get_object_by_uuid_equipment(user.uuid, uuid_equipment)
+        if obj is None:
+            return False
+        return True
+
     async def get_count_page(self) -> int:
         count_row = await self.__object_repo.count_row()
         sub_page = 0

@@ -134,6 +134,8 @@ class Equipment(base):
     description = Column(Text, nullable=True)
     characteristics = Column(JSONB, nullable=True)
 
+    is_delite = Column(Boolean, default=False, nullable=True, server_default="False")
+
 
 class ObjectToUser(base):
     __tablename__ = "object_to_user"

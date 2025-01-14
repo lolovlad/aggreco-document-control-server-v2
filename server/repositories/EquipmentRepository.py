@@ -12,12 +12,22 @@ class EquipmentRepository:
         self.__session: AsyncSession = session
 
     async def count_row(self, uuid_object: str) -> int:
-        response = select(func.count(Equipment.id)).join(Object).where(Object.uuid == uuid_object)
+        response = (select(func.count(Equipment.id))
+                    .join(Object)
+                    .where(Object.uuid == uuid_object)
+                    .where(Object.is_deleted == False)
+                    .where(Equipment.is_delite == False))
         result = await self.__session.execute(response)
         return result.scalars().first()
 
     async def get_limit_equip(self, uuid_object: str, start: int, end: int) -> list[Equipment]:
-        response = select(Equipment).join(Object).where(Object.uuid == uuid_object).offset(start).fetch(end).order_by(Equipment.id)
+        response = (select(Equipment)
+                    .join(Object)
+                    .where(Object.uuid == uuid_object)
+                    .where(Equipment.is_delite == False)
+                    .offset(start)
+                    .fetch(end)
+                    .order_by(Equipment.id))
         result = await self.__session.execute(response)
         return result.scalars().all()
 
@@ -35,7 +45,7 @@ class EquipmentRepository:
             raise Exception
 
     async def get_by_uuid(self, uuid: str) -> Equipment | None:
-        response = select(Equipment).where(Equipment.uuid == uuid)
+        response = select(Equipment).where(Equipment.uuid == uuid).where(Equipment.is_delite == False)
         result = await self.__session.execute(response)
         return result.scalars().first()
 
@@ -52,7 +62,8 @@ class EquipmentRepository:
         if entity is None:
             raise Exception
         try:
-            await self.__session.delete(entity)
+            entity.is_delite = True
+            self.__session.add(entity)
             await self.__session.commit()
         except Exception:
             await self.__session.rollback()
@@ -66,13 +77,13 @@ class EquipmentRepository:
             raise Exception
 
     async def get_all_equipment(self, uuid_object: str) -> list[Equipment]:
-        response = select(Equipment).join(Object).where(Object.uuid == uuid_object).order_by(
+        response = select(Equipment).join(Object).where(Object.uuid == uuid_object).where(Equipment.is_delite is False).order_by(
             Equipment.id)
         result = await self.__session.execute(response)
         return result.scalars().all()
 
     async def get_equipment_by_uuid_set(self, uuid_list: list[str]) -> list[Equipment]:
-        response = select(Equipment).where(Equipment.uuid.in_(uuid_list))
+        response = select(Equipment).where(Equipment.uuid.in_(uuid_list)).where(Equipment.is_delite is False)
         result = await self.__session.execute(response)
         return result.scalars().all()
 
@@ -80,9 +91,10 @@ class EquipmentRepository:
         response = (select(Equipment)
                     .join(Object).where(Object.uuid == uuid_object)
                     .where(or_(Equipment.name.ilike(f'%{name_equipment}%'),
-                               Equipment.code.ilike(f'%{name_equipment}%'))).
-                    limit(count).
-                    order_by(Equipment.id))
+                               Equipment.code.ilike(f'%{name_equipment}%')))
+                    .where(Equipment.is_delite == False)
+                    .limit(count)
+                    .order_by(Equipment.id))
         result = await self.__session.execute(response)
         return result.scalars().all()
 
@@ -90,6 +102,7 @@ class EquipmentRepository:
         response = (select(Equipment)
                     .join(Object, Equipment.id_object == Object.id)
                     .where(Equipment.uuid == uuid_equipment)
+                    .where(Equipment.is_delite == False)
                     .where(Object.uuid == uuid_object))
         result = await self.__session.execute(response)
         return result.scalars().all()
