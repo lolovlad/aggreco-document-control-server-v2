@@ -110,7 +110,6 @@ async def add_accident(accident: PostAccident,
 @router.get("/{uuid}", response_model=GetAccident,
             responses={
                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
-                status.HTTP_200_OK: {"model": Message},
                 status.HTTP_404_NOT_FOUND: {"model": Message}
             })
 async def get_one_accident(uuid: str,

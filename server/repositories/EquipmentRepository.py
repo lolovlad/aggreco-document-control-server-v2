@@ -77,13 +77,13 @@ class EquipmentRepository:
             raise Exception
 
     async def get_all_equipment(self, uuid_object: str) -> list[Equipment]:
-        response = select(Equipment).join(Object).where(Object.uuid == uuid_object).where(Equipment.is_delite is False).order_by(
+        response = select(Equipment).join(Object).where(Object.uuid == uuid_object).where(Equipment.is_delite == False).order_by(
             Equipment.id)
         result = await self.__session.execute(response)
         return result.scalars().all()
 
     async def get_equipment_by_uuid_set(self, uuid_list: list[str]) -> list[Equipment]:
-        response = select(Equipment).where(Equipment.uuid.in_(uuid_list)).where(Equipment.is_delite is False)
+        response = select(Equipment).where(Equipment.uuid.in_(uuid_list)).where(Equipment.is_delite == False)
         result = await self.__session.execute(response)
         return result.scalars().all()
 
