@@ -356,7 +356,7 @@ async def registrate_user_to_object(uuid_object: str,
                 return JSONResponse(content={"message": "добавлено"},
                                     status_code=status.HTTP_201_CREATED)
             else:
-                return JSONResponse(content={"message": "ужу существует или прикреплен к другому объекту"},
+                return JSONResponse(content={"message": "уже существует или прикреплен к другому объекту"},
                                     status_code=status.HTTP_200_OK)
         except Exception:
             return JSONResponse(content={"message": "ошибка добавления"},

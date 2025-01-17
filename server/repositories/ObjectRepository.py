@@ -58,13 +58,26 @@ class ObjectRepository:
             await self.__session.rollback()
             raise Exception
 
+    async def delete(self, uuid_entity: str):
+        obj = await self.get_by_uuid(uuid_entity)
+        response = select(ObjectToUser).join(Object).where(Object.uuid == uuid_entity)
+        result = await self.__session.execute(response)
+        staff = result.scalars().all()
+        try:
+            for i in staff:
+                await self.__session.delete(i)
+            obj.is_deleted = True
+            await self.update(obj)
+        except Exception:
+            await self.__session.rollback()
+
     async def get_user_by_uuid_object(self, uuid: str) -> list[User]:
         entity = await self.get_by_uuid(uuid)
         response = select(User).join(ObjectToUser).where(ObjectToUser.id_object == entity.id)
         result = await self.__session.execute(response)
         return result.scalars().all()
 
-    async def unique_object_to_user(self, uuid_object: str, uuid_user) -> bool:
+    async def unique_object_to_user(self, uuid_object: str, uuid_user: str) -> bool:
         response = select(ObjectToUser).\
             join(Object).\
             join(User).\
@@ -108,8 +121,8 @@ class ObjectRepository:
         result = await self.__session.execute(response)
         return result.fetchall()
 
-    async def get_registrate_user_by_object(self, user_id: int, object_id: int):
-        response = select(ObjectToUser).where(ObjectToUser.id_object == object_id).where(ObjectToUser.id_user == user_id)
+    async def get_registrate_user_by_object(self, user_id: int):
+        response = select(ObjectToUser).where(ObjectToUser.id_user == user_id)
         result = await self.__session.execute(response)
         return result.scalars().all()
 

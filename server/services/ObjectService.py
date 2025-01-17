@@ -101,10 +101,8 @@ class ObjectService:
             raise Exception
 
     async def delete_object(self, uuid: str):
-        entity = await self.__object_repo.get_by_uuid(uuid)
-        entity.is_deleted = True
         try:
-            await self.__object_repo.update(entity)
+            await self.__object_repo.delete(uuid)
         except Exception:
             raise Exception
 
@@ -119,7 +117,7 @@ class ObjectService:
             user = await self.__user_repo.get_user_by_uuid(uuid_user)
             obj = await self.__object_repo.get_by_uuid(uuid_object)
 
-            ent = await self.__object_repo.get_registrate_user_by_object(user.id, obj.id)
+            ent = await self.__object_repo.get_registrate_user_by_object(user.id)
             if len(ent) > 0:
                 return False
             try:
