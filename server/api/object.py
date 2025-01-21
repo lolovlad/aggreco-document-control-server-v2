@@ -313,7 +313,7 @@ async def update_equipment(uuid_equipment: str,
 
     if (is_edit and current_user.type.name == "user") or current_user.type.name == "admin":
         try:
-            await service.update_equip(uuid, target_equipment)
+            await service.update_equip(uuid_equipment, target_equipment)
             return JSONResponse(content={"message": "Обновленно"},
                                 status_code=status.HTTP_200_OK)
         except Exception:
@@ -400,3 +400,44 @@ async def get_object_to_user(service: ObjectService = Depends(),
         else:
             return JSONResponse(content={"message": " не существует"},
                                 status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.get("/state_object", response_model=list[StateObject], responses={
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+})
+async def get_state_object(service: ObjectService = Depends()):
+    state = await service.get_all_state_object()
+    return state
+
+
+@router.get("/region/get_all", response_model=list[Region], responses={
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+})
+async def get_region(service: ObjectService = Depends()):
+    region = await service.get_all_region()
+    return region
+
+
+@router.post("/region/import_file", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_201_CREATED: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def import_region(file: UploadFile = File(...),
+                            service: ObjectService = Depends(),
+                            current_user: UserGet = Depends(get_current_user)):
+    if current_user.type.name == "admin":
+        try:
+            if file.content_type == "text/csv":
+                await service.import_region_file(file)
+            else:
+                return JSONResponse(content={"message": "файл не того типа"},
+                                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            return JSONResponse(content={"message": "добавлено"},
+                                status_code=status.HTTP_201_CREATED)
+        except Exception:
+            return JSONResponse(content={"message": "ошибка добавления"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return message_error[status.HTTP_406_NOT_ACCEPTABLE]

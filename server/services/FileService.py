@@ -11,7 +11,7 @@ from random import randint
 from functools import partial
 from docxtpl import DocxTemplate, InlineImage
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 
 class FileService:
@@ -34,6 +34,20 @@ class FileService:
             "m": datetime.minute,
             "s": datetime.second
         }
+
+    def __get_moscov_datetime(self, datetime: datetime, time_zone: str):
+        sign = 1 if time_zone[0] == "+" else -1
+        hours, minutes = map(int, time_zone[1:].split(":"))
+        offset = timedelta(hours=hours, minutes=minutes) * sign
+
+        aware_datetime = datetime.replace(tzinfo=timezone(offset))
+
+        utc_datetime = aware_datetime.astimezone(timezone.utc)
+
+        moscow_timezone = timezone(timedelta(hours=3))
+        moscow_datetime = utc_datetime.astimezone(moscow_timezone)
+
+        return moscow_datetime
 
     async def get_all_files(self) -> list[GetFile]:
         files = await self.__file_repo.get_all()
@@ -88,16 +102,19 @@ class FileService:
 
         dump["castome"] = {
             "date": {
-                "start": self.__get_date_split(claim.accident.datetime_start),
-                "end": self.__get_date_split(claim.accident.datetime_end),
-            }
+                "start_local": self.__get_date_split(claim.accident.datetime_start),
+                "end_local": self.__get_date_split(claim.accident.datetime_end),
+                "start_msc": self.__get_date_split(self.__get_moscov_datetime(claim.accident.datetime_start, claim.accident.time_zone)),
+                "end_msc": self.__get_date_split(self.__get_moscov_datetime(claim.accident.datetime_end, claim.accident.time_zone)),
+            },
+            "unique_type_damage_equipment": [i.model_dump() for i in claim.accident.get_unique_type_damaged_equipment()]
         }
 
         dump["accident"]["time_line"] = [
             {
                 "time": i["time"].strftime("%d.%m.%Y %H:%M"),
                 "val": i["description"]
-            } for i in dump["accident"]["time_line"]
+            } for i in sorted(dump["accident"]["time_line"], key=lambda i: i["time"])
         ]
 
         blueprint.render(dump)

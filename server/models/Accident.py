@@ -1,8 +1,9 @@
 from pydantic import BaseModel, UUID4, field_serializer
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+import pytz
 from .Object import GetObject
-from .Equipment import GetEquipment
+from .Equipment import GetEquipment, TypeEquipment
 from .Event import GetEvent
 
 
@@ -16,6 +17,12 @@ class ClassBrake(BaseModel):
     id: int
     name: str
     description: str | None
+
+
+class SignsAccident(BaseModel):
+    id: int
+    name: str
+    code: str
 
 
 class BaseTypeBrake(BaseModel):
@@ -39,12 +46,23 @@ class BaseAccident(BaseModel):
     datetime_start: datetime
     datetime_end: datetime | None
     additional_material: str | None
+    time_zone: str | None
+
+    @field_serializer("datetime_start")
+    def serialize_datetime_start(self, dt: datetime, _info):
+
+        self.datetime_start = self.datetime_start
+        if self.datetime_end is not None:
+            self.datetime_end = self.datetime_end
+
+        return self.datetime_start.isoformat()
 
 
 class GetLightweightAccident(BaseAccident):
     uuid: UUID4
     object: GetObject
     state_accident: StateAccidentModel | None
+    signs_accident: SignsAccident | None
 
     damaged_equipment: list[GetEquipment]
 
@@ -52,10 +70,18 @@ class GetLightweightAccident(BaseAccident):
     def serialize_uuid(self, uuid: UUID4, _info):
         return str(uuid)
 
+    def get_unique_type_damaged_equipment(self) -> list[TypeEquipment]:
+        sets = {}
+        for i in self.damaged_equipment:
+            sets[i.type.code] = i.type
+        return list(sets.values())
+
+
 
 class GetAccident(GetLightweightAccident):
 
     type_brakes: list[GetTypeBrake]
+    signs_accident: list[SignsAccident]
 
     time_line: dict
 
@@ -92,6 +118,8 @@ class UpdateAccident(BaseModel):
     datetime_end: datetime | None
     equipments: list[str]
     type_brakes: list[int] | None
+    signs_accident: list[int] | None
+
     causes_of_the_emergency: str
     damaged_equipment_material: str
     additional_material: str | None

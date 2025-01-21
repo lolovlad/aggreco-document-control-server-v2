@@ -2,7 +2,7 @@ from fastapi import Depends, UploadFile
 from ..models.Accident import *
 from ..models.Event import *
 from ..models.User import UserGet
-from ..tables import ClassBrake as ClassBrakeORM, TypeBrake as TypeBrakeORM, Accident, Event
+from ..tables import TypeBrake as TypeBrakeORM, Accident, Event, SignsAccident as SignsAccidentORM
 
 from ..repositories import AccidentRepository, TypeBrakeRepository, ObjectRepository, EquipmentRepository, EventRepository
 
@@ -84,7 +84,7 @@ class AccidentService:
         finally:
             await file.close()
 
-    async def add_accident(self, accident: PostAccident) -> Accident:
+    async def add_accident(self, accident: PostAccident, time_zone: str) -> Accident:
         obj = await self.__object_repo.get_by_uuid(accident.object)
         equipments = await self.__equipment_repo.get_equipment_by_uuid_set(accident.equipments)
 
@@ -92,13 +92,14 @@ class AccidentService:
 
         entity = Accident(
             id_object=obj.id,
-            datetime_start=accident.datetime_start,
-            datetime_end=accident.datetime_end,
+            datetime_start=accident.datetime_start.replace(tzinfo=None),
+            datetime_end=accident.datetime_end.replace(tzinfo=None) if accident.datetime_end is not None else None,
             time_line={},
             causes_of_the_emergency="Нет",
             damaged_equipment_material="Нет",
             additional_material="Нет",
-            id_state_accident=state_accident.id
+            id_state_accident=state_accident.id,
+            time_zone=time_zone
         )
         entity.damaged_equipment.extend(equipments)
 
@@ -116,14 +117,17 @@ class AccidentService:
                               target: UpdateAccident,
                               user: UserGet,
                               state_accident: str | None = "empty"):
+
         entity = await self.__accident_repo.get_by_uuid(uuid_accident)
         entity.damaged_equipment = []
         entity.type_brakes = []
+        entity.signs_accident = []
         await self.__accident_repo.update(entity)
 
         object = await self.__object_repo.get_by_uuid(target.uuid_object)
         equipments = await self.__equipment_repo.get_equipment_by_uuid_set(target.equipments)
         types_brake = await self.__type_brake_repo.get_brakes_by_uuid_set(target.type_brakes)
+        signs_accident = await self.__accident_repo.get_signs_accident_by_id_set(target.signs_accident)
 
         if user.type.name == "admin":
             state_accident_obj = await self.__accident_repo.get_state_accident_by_name("empty")
@@ -134,13 +138,14 @@ class AccidentService:
 
         entity.id_object = object.id
         entity.damaged_equipment = equipments
-        entity.datetime_start = target.datetime_start
-        entity.datetime_end = target.datetime_end
+        entity.datetime_start = target.datetime_start.replace(tzinfo=None)
+        entity.datetime_end = target.datetime_end.replace(tzinfo=None) if target.datetime_end is not None else None
         entity.type_brakes = types_brake
         entity.causes_of_the_emergency = target.causes_of_the_emergency
         entity.damaged_equipment_material = target.damaged_equipment_material
         entity.additional_material = target.additional_material
         entity.id_state_accident = state_accident_obj.id
+        entity.signs_accident = signs_accident
 
         await self.__accident_repo.update(entity)
 
@@ -159,6 +164,8 @@ class AccidentService:
 
     async def add_time_line(self, uuid_accident: str, target: TimeLine) -> list[TimeLine]:
         accident = await self.__accident_repo.get_by_uuid(uuid_accident)
+
+        target.time = target.time.replace(tzinfo=None)
 
         tm = accident.time_line
 
@@ -184,7 +191,7 @@ class AccidentService:
 
     async def update_time_line(self, uuid: str, target: TimeLine) -> list[TimeLine]:
         accident = await self.__accident_repo.get_by_uuid(uuid)
-
+        target.time = target.time.replace(tzinfo=None)
         tm = accident.time_line
 
         tm[target.uuid] = {
@@ -309,3 +316,30 @@ class AccidentService:
         accident = await self.__accident_repo.get_by_uuid(uuid_accident)
 
         remove(Path(Path(__path__), settings.static_file, accident.object.name, uuid_accident, name_file))
+
+    async def get_all_signs_accident(self) -> list[SignsAccident] | None:
+        entity = await self.__accident_repo.get_all_signs_accident()
+        if entity is None:
+            return None
+        signs_accident = [SignsAccident.model_validate(entity, from_attributes=True) for entity in entity]
+        return signs_accident
+
+    async def import_signs_accident(self, file: UploadFile):
+        try:
+            signs_accident_list = []
+            while contents := await file.read(1024 * 1024):
+                buffer = StringIO(contents.decode('utf-8-sig'))
+                csv_reader = csv.DictReader(buffer, delimiter=';')
+
+                for rows in csv_reader:
+                    signs_accident = SignsAccidentORM(
+                        code=rows["code"],
+                        name=rows["name"],
+                    )
+                    signs_accident_list.append(signs_accident)
+                await self.__accident_repo.add_list_signs_accident(signs_accident_list)
+
+        except Exception:
+            raise Exception()
+        finally:
+            await file.close()

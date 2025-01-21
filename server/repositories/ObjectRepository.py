@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 
 from fastapi import Depends
 
-from ..tables import Object, StateObject, User, ObjectToUser, Equipment
+from ..tables import Object, StateObject, User, ObjectToUser, Equipment, Region
 from ..database import get_session
 
 
@@ -145,3 +145,16 @@ class ObjectRepository:
                     )
         result = await self.__session.execute(response)
         return result.scalars().first()
+
+    async def get_all_region(self) -> list[Region]:
+        response = select(Region)
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
+    async def add_list_region(self, regions: list[Region]):
+        try:
+            self.__session.add_all(regions)
+            await self.__session.commit()
+        except:
+            await self.__session.rollback()
+            raise Exception

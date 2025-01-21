@@ -56,19 +56,22 @@ async def get_page_claim(
     status.HTTP_201_CREATED: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 })
-async def add_claim(claim: PostClaim,
+async def add_claim(request: Request,
+                    claim: PostClaim,
                     current_user: UserGet = Depends(get_current_user),
                     claim_service: ClaimServices = Depends(),
                     accident_service: AccidentService = Depends()):
-    try:
-        accident = await accident_service.add_accident(claim.accident)
 
-        await claim_service.add_claim(current_user.uuid, accident.id, claim)
-        return JSONResponse(content={"message": "добавлено"},
-                            status_code=status.HTTP_201_CREATED)
-    except Exception:
-        return JSONResponse(content={"message": "ошибка добавления"},
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    client_timezone = request.headers.get("X-Timezone", "Unknown")
+    #try:
+    accident = await accident_service.add_accident(claim.accident, client_timezone)
+
+    await claim_service.add_claim(current_user.uuid, accident.id, claim)
+    return JSONResponse(content={"message": "добавлено"},
+                        status_code=status.HTTP_201_CREATED)
+    #except Exception:
+    #    return JSONResponse(content={"message": "ошибка добавления"},
+    #                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/get/{uuid}", responses={

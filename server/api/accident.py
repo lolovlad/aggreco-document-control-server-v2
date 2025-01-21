@@ -9,7 +9,8 @@ from ..models.Accident import (
     GetAccident,
     UpdateAccident,
     TimeLine,
-    FileAccident
+    FileAccident,
+    SignsAccident
 )
 from ..models.Message import Message
 from ..models.User import UserGet
@@ -23,6 +24,40 @@ message_error = {
     status.HTTP_406_NOT_ACCEPTABLE: JSONResponse(content={"message": "отказ в доступе"},
                                                  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 }
+
+
+@router.get("/signs_accident/get_all", response_model=list[SignsAccident], responses={
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    status.HTTP_404_NOT_FOUND: {"model": Message},
+})
+async def get_signs_accident(service: AccidentService = Depends()):
+    signs_accident = await service.get_all_signs_accident()
+    return signs_accident
+
+
+@router.post("/signs_accident/import_file", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_201_CREATED: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+async def import_signs_accident(file: UploadFile = File(...),
+                                service: AccidentService = Depends(),
+                                current_user: UserGet = Depends(get_current_user)):
+    if current_user.type.name == "admin":
+        try:
+            if file.content_type == "text/csv":
+                await service.import_signs_accident(file)
+            else:
+                return JSONResponse(content={"message": "файл не того типа"},
+                                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            return JSONResponse(content={"message": "добавлено"},
+                                status_code=status.HTTP_201_CREATED)
+        except Exception:
+            return JSONResponse(content={"message": "ошибка добавления"},
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    else:
+        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
 
 
 @router.get("/type_brake_mechanical/{class_brake}", response_model=list[GetTypeBrake], responses={
@@ -92,12 +127,15 @@ async def get_page_accident(
     status.HTTP_201_CREATED: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 })
-async def add_accident(accident: PostAccident,
-                       current_user: UserGet = Depends(get_current_user),
-                       service: AccidentService = Depends()):
+async def add_accident(
+        request: Request,
+        accident: PostAccident,
+        current_user: UserGet = Depends(get_current_user),
+        service: AccidentService = Depends()):
+    client_timezone = request.headers.get("X-Timezone", "Unknown")
     if current_user.type.name == "admin":
         try:
-            await service.add_accident(accident)
+            await service.add_accident(accident, client_timezone)
             return JSONResponse(content={"message": "добавлено"},
                                 status_code=status.HTTP_201_CREATED)
         except Exception:
@@ -128,11 +166,14 @@ async def get_one_accident(uuid: str,
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
     status.HTTP_200_OK: {"model": Message},
 })
-async def update_accident(uuid: str,
-                          target_accident: UpdateAccident,
-                          service: AccidentService = Depends(),
-                          current_user: UserGet = Depends(get_current_user)):
+async def update_accident(
+        request: Request,
+        uuid: str,
+        target_accident: UpdateAccident,
+        service: AccidentService = Depends(),
+        current_user: UserGet = Depends(get_current_user)):
 
+    client_timezone = request.headers.get("X-Timezone", "Unknown")
     await service.update_accident(uuid, target_accident, current_user)
     return JSONResponse(content={"message": "Обновленно"},
                         status_code=status.HTTP_200_OK)

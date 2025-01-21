@@ -104,12 +104,23 @@ class TypeEquipment(base):
     description = Column(String(128), nullable=True)
 
 
+class Region(base):
+    __tablename__ = "region"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    name = Column(String(255), nullable=False, unique=True)
+    code = Column(String(128), nullable=False, unique=True)
+
+
 class Object(base):
     __tablename__ = "object"
     id = Column(Integer, autoincrement=True, primary_key=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
     name = Column(String(256), nullable=False)
     address = Column(String(256), nullable=False)
+
+    id_region = Column(ForeignKey("region.id"), nullable=True)
+    region = relationship("Region", lazy="joined")
+
     cx = Column(Float, nullable=True, default=0.0)
     cy = Column(Float, nullable=True, default=0.0)
     description = Column(Text, nullable=True)
@@ -159,6 +170,13 @@ class TypeBrake(base):
     type = relationship(ClassBrake, lazy="joined")
 
 
+class SignsAccident(base):
+    __tablename__ = "signs_accident"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    code = Column(String, unique=True, nullable=False)
+    name = Column(String, nullable=False)
+
+
 class StateEvent(base):
     __tablename__ = "state_event"
     id = Column(Integer, autoincrement=True, primary_key=True)
@@ -205,10 +223,12 @@ class Accident(base):
     id_object = Column(ForeignKey("object.id"))
     object = relationship(Object, lazy="joined")
 
+    signs_accident = relationship(SignsAccident, secondary="signs_accident_to_accident", lazy="joined")
+
     damaged_equipment = relationship(Equipment, secondary="equipment_to_accident", lazy="joined")
 
-    datetime_start = Column(DateTime(timezone=True), nullable=False)
-    datetime_end = Column(DateTime(timezone=True), nullable=True)
+    datetime_start = Column(DateTime(timezone=False), nullable=False)
+    datetime_end = Column(DateTime(timezone=False), nullable=True)
 
     type_brakes = relationship(TypeBrake, secondary="type_brake_to_accident", lazy="joined")
 
@@ -223,6 +243,14 @@ class Accident(base):
 
     id_state_accident = Column(ForeignKey("state_accident.id"))
     state_accident = relationship(StateAccident, lazy="joined")
+
+    time_zone = Column(String, nullable=True, default="+03:00", server_default="+03:00")
+
+
+class SignsAccidentToAccident(base):
+    __tablename__ = "signs_accident_to_accident"
+    id_accident = Column(ForeignKey("accident.id"), primary_key=True)
+    id_signs_accident = Column(ForeignKey("signs_accident.id"), primary_key=True)
 
 
 class TypeBrakeToAccident(base):
