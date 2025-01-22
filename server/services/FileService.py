@@ -23,16 +23,16 @@ class FileService:
         self.__claim_service: ClaimServices = claim
 
     def __get_date_split(self, datetime: datetime) -> dict:
-        date = datetime.strftime("%d.%m.%Y")
+        date = datetime.strftime("%d.%m.%Y.%H.%M.%S")
         date_split = date.split('.')
         return {
-            "date": date,
+            "date": ".".join(date_split[:3]),
             "d": date_split[0],
             "mm": date_split[1],
             "y": date_split[2],
-            "h": datetime.hour,
-            "m": datetime.minute,
-            "s": datetime.second
+            "h": date_split[3],
+            "m": date_split[4],
+            "s": date_split[5]
         }
 
     def __get_moscov_datetime(self, datetime: datetime, time_zone: str):
@@ -115,6 +115,14 @@ class FileService:
                 "time": i["time"].strftime("%d.%m.%Y %H:%M"),
                 "val": i["description"]
             } for i in sorted(dump["accident"]["time_line"], key=lambda i: i["time"])
+        ]
+
+        dump["accident"]["event"] = [
+            {
+                "date_finish": i["date_finish"].strftime("%d.%m.%Y %H:%M"),
+                "description": i["description"],
+                "type_event": i["type_event"]
+            } for i in sorted(dump["accident"]["event"], key=lambda i: i["date_finish"])
         ]
 
         blueprint.render(dump)
