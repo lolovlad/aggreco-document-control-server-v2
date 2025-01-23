@@ -158,12 +158,12 @@ async def create_event_context():
 
                 local_type_event = TypeEvent(
                     name="local",
-                    description="Локальное"
+                    description="Технические"
                 )
 
                 general_type_event = TypeEvent(
                     name="general",
-                    description="Общие"
+                    description="Организационные"
                 )
 
                 session.add(done_state)
