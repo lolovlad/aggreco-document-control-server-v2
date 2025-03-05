@@ -9,5 +9,7 @@ from .StatisticRepository import StatisticRepository
 from .FileBucketRepository import FileBucketRepository
 from .ClaimRepository import ClaimRepository
 from .FileRepository import FileRepository
+from .EnvRepository import EnvRepository
+
 
 

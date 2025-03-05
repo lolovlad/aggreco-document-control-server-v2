@@ -61,19 +61,6 @@ class AccidentRepository:
             await self.__session.rollback()
             raise Exception
 
-    async def get_all_signs_accident(self) -> list[SignsAccident]:
-        response = select(SignsAccident)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
-    async def add_list_signs_accident(self, signs_accident: list[SignsAccident]):
-        try:
-            self.__session.add_all(signs_accident)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
-
     async def get_signs_accident_by_id_set(self, id_list: list[int]) -> list[SignsAccident]:
         response = select(SignsAccident).where(SignsAccident.id.in_(id_list))
         result = await self.__session.execute(response)

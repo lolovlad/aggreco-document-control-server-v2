@@ -62,7 +62,7 @@ class GetLightweightAccident(BaseAccident):
     uuid: UUID4
     object: GetObject
     state_accident: StateAccidentModel | None
-    signs_accident: SignsAccident | None
+    signs_accident: list[SignsAccident] | None
 
     damaged_equipment: list[GetEquipment]
 
@@ -75,7 +75,6 @@ class GetLightweightAccident(BaseAccident):
         for i in self.damaged_equipment:
             sets[i.type.code] = i.type
         return list(sets.values())
-
 
 
 class GetAccident(GetLightweightAccident):

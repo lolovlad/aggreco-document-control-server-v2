@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status, Request, Response, UploadFile, File
-from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from ..services import ClaimServices, get_current_user, AccidentService
 from ..models.Claim import (
@@ -11,6 +11,7 @@ from ..models.Claim import (
 from ..models.Message import Message
 from ..models.User import UserGet
 from ..repositories import FileBucketRepository
+from ..functions import access_control
 
 
 router = APIRouter(prefix="/claim", tags=["claim"])
@@ -177,16 +178,14 @@ async def update_claim_state(uuid_claim: str,
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
     status.HTTP_200_OK: {"model": Message},
 })
+@access_control(["admin", "super_admin"])
 async def update_claim(uuid_claim: str,
                        claim_model: UpdateClaim,
                        current_user: UserGet = Depends(get_current_user),
                        service: ClaimServices = Depends()
                        ):
-    if current_user.type.name == "admin":
-        try:
-            await service.update_claim(uuid_claim, claim_model)
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        await service.update_claim(uuid_claim, claim_model)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

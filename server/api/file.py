@@ -17,6 +17,7 @@ from ..repositories import FileBucketRepository
 from ..models.Message import Message
 from ..models.User import UserGet
 from ..models.Files import GetFile, FileGenerate
+from ..functions import access_control
 
 router = APIRouter(prefix="/file", tags=["file"])
 message_error = {
@@ -86,37 +87,33 @@ async def generate_file(uuid_claim: str,
     status.HTTP_200_OK: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 })
+@access_control(["super_admin", "admin"])
 async def delete_file(id_file: int,
                       current_user: UserGet = Depends(get_current_user),
                       service: FileService = Depends()):
-    if current_user.type.name == "admin":
-        try:
-            await service.delete_file(id_file)
-            return JSONResponse(content={"message": "Файл удален"},
-                                status_code=status.HTTP_200_OK)
-        except Exception:
-            return JSONResponse(content={"message": "Ошибка удаления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        await service.delete_file(id_file)
+        return JSONResponse(content={"message": "Файл удален"},
+                            status_code=status.HTTP_200_OK)
+    except Exception:
+        return JSONResponse(content={"message": "Ошибка удаления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/metadata/{id_blueprint}", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 }, response_model=GetFile)
+@access_control(["super_admin", "admin"])
 async def get_metadata_file(id_blueprint: int,
                             current_user: UserGet = Depends(get_current_user),
                             service: FileService = Depends()):
-    if current_user.type.name == "admin":
-        try:
-            file = await service.get_file_metadata(id_blueprint)
-            return file
-        except Exception:
-            return JSONResponse(content={"message": "Ошибка удаления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        file = await service.get_file_metadata(id_blueprint)
+        return file
+    except Exception:
+        return JSONResponse(content={"message": "Ошибка удаления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.put("/{id_blueprint}", responses={

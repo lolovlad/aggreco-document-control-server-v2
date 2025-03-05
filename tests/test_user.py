@@ -20,21 +20,29 @@ def get_token(client):
                            })
     return response.json()["access_token"]
 
+def get_token_superuser(client):
+    username = "super_admin@super_admin.com"
+    password = "admin"
 
-async def test_get_type_user(client):
-    token = get_token(client)
-    response = client.get("/v1/user/type_user", headers={"Authorization": f"Bearer {token}"})
-
-    data = response.json()
-    assert len(data) == 2
-    assert type(data) == list
+    response = client.post("/v1/login/sign-in", data={
+        "grant_type": "",
+        "username": username,
+        "password": password,
+        "client_id": "",
+        "client_secret": ""
+    },
+                           headers={
+                               'Content-Type': 'application/x-www-form-urlencoded',
+                               'accept': 'application/json'
+                           })
+    return response.json()["access_token"]
 
 
 async def test_create_user(client):
     token = get_token(client)
     user = UserPost(
         email="test@test.ru",
-        id_type=2,
+        id_type=3,
         name="test",
         surname="test",
         patronymic="test",
@@ -71,6 +79,22 @@ async def test_user_login(client):
     })
     assert len(response.json()["access_token"]) > 10
 
+    username = "super_admin@super_admin.com"
+    password = "admin"
+
+    response = client.post("/v1/login/sign-in", data={
+        "grant_type": "",
+        "username": username,
+        "password": password,
+        "client_id": "",
+        "client_secret": ""
+    },
+    headers={
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'accept': 'application/json'
+    })
+    assert len(response.json()["access_token"]) > 10
+
 
 async def test_get_user(client):
 
@@ -85,7 +109,16 @@ async def test_get_user(client):
         "Authorization": f"Bearer {token}"
     })
     assert resp.status_code == 200
-    assert len(resp.json()) == 2
+    assert len(resp.json()) == 4
+
+    cl = client
+
+    token = get_token_superuser(cl)
+
+    resp = client.get("/v1/user/page_user", headers={
+        "Authorization": f"Bearer {token}"
+    })
+    assert resp.status_code == 200
 
 
 async def test_update_user(client):
@@ -111,36 +144,3 @@ async def test_delete_user(client):
     response = client.delete(f"/v1/user/{data['uuid']}", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
 
-
-async def test_add_profession(client):
-    token = get_token(client)
-    prof = Profession(
-        name="junior_software_engineer"
-    )
-    response = client.post("/v1/user/profession", headers={"Authorization": f"Bearer {token}"},
-                           json=prof.model_dump())
-    assert response.status_code == 201
-
-
-async def test_get_user_profession(client):
-    token = get_token(client)
-    response = client.get("/v1/user/profession",
-                          headers={"Authorization": f"Bearer {token}"})
-
-    assert len(response.json()) == 2
-    assert response.status_code == 200
-
-
-async def test_delete_profession(client):
-    token = get_token(client)
-    response = client.get("/v1/user/profession",
-                          headers={"Authorization": f"Bearer {token}"})
-    data = [i for i in response.json() if i["name"] != "unknown"][0]
-
-    response = client.delete(f"/v1/user/profession/{data['id']}",
-                             headers={"Authorization": f"Bearer {token}"})
-
-    assert response.status_code == 200
-    response = client.get("/v1/user/profession",
-                          headers={"Authorization": f"Bearer {token}"})
-    assert len(response.json()) == 1

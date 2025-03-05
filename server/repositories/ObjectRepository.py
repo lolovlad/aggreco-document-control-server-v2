@@ -32,11 +32,6 @@ class ObjectRepository:
         result = await self.__session.execute(response)
         return result.unique().scalars().all()
 
-    async def get_all_state_object(self) -> list[StateObject]:
-        response = select(StateObject)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
     async def add(self, object: Object):
         try:
             self.__session.add(object)
@@ -145,16 +140,3 @@ class ObjectRepository:
                     )
         result = await self.__session.execute(response)
         return result.scalars().first()
-
-    async def get_all_region(self) -> list[Region]:
-        response = select(Region)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
-    async def add_list_region(self, regions: list[Region]):
-        try:
-            self.__session.add_all(regions)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception

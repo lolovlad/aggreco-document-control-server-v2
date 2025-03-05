@@ -6,9 +6,6 @@ from ..tables import Object, StateObject as StateObjectORM, Equipment, TypeEquip
 from ..repositories.ObjectRepository import ObjectRepository
 from ..repositories import UserRepository, EquipmentRepository
 
-from io import StringIO
-import csv
-
 
 class ObjectService:
     def __init__(self,
@@ -65,10 +62,6 @@ class ObjectService:
         entity = await self.__object_repo.get_all_object(filter_user)
         objects = [GetObject.model_validate(entity, from_attributes=True) for entity in entity]
         return objects
-
-    async def get_all_state_object(self) -> list[StateObject]:
-        entity = await self.__object_repo.get_all_state_object()
-        return [StateObject.model_validate(i, from_attributes=True) for i in entity]
 
     async def create_object(self, object_target: PostObject):
         entity = Object(
@@ -141,29 +134,3 @@ class ObjectService:
         if obj is None:
             return obj
         return GetObject.model_validate(obj, from_attributes=True)
-
-    async def get_all_region(self) -> list[Region]:
-        entity = await self.__object_repo.get_all_region()
-        return [Region.model_validate(i, from_attributes=True) for i in entity]
-
-    async def import_region_file(self, file: UploadFile):
-        try:
-            regions = []
-            while contents := await file.read(1024 * 1024):
-                buffer = StringIO(contents.decode('utf-8-sig'))
-                csv_reader = csv.DictReader(buffer, delimiter=';')
-
-                for rows in csv_reader:
-
-                    region = RegionORM(
-                        code=rows["code"],
-                        name=rows["name"],
-                    )
-                    regions.append(region)
-
-                await self.__object_repo.add_list_region(regions)
-
-        except Exception:
-            raise Exception()
-        finally:
-            await file.close()

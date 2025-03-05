@@ -2,12 +2,10 @@ from fastapi import Depends, UploadFile
 from ..models.Accident import *
 from ..models.Event import *
 from ..models.User import UserGet
-from ..tables import TypeBrake as TypeBrakeORM, Accident, Event, SignsAccident as SignsAccidentORM
+from ..tables import Accident, Event
 
 from ..repositories import AccidentRepository, TypeBrakeRepository, ObjectRepository, EquipmentRepository, EventRepository
 
-from io import StringIO
-import csv
 from uuid import uuid4
 
 from urllib.parse import urlparse
@@ -53,36 +51,6 @@ class AccidentService:
         entity = await self.__accident_repo.get_limit_accident(uuid_object, start, end)
         accident = [GetLightweightAccident.model_validate(entity, from_attributes=True) for entity in entity]
         return accident
-
-    async def get_all_type_brake(self, class_brake: str) -> list[GetTypeBrake] | None:
-        entity = await self.__type_brake_repo.get_all_type_brake_by_class(class_brake)
-        if entity is None:
-            return None
-        type_brake = [GetTypeBrake.model_validate(entity, from_attributes=True) for entity in entity]
-        return type_brake
-
-    async def import_type_brake_file(self, class_brake: str, file: UploadFile):
-        type_class_brake = await self.__type_brake_repo.get_class_brake_by_name(class_brake)
-        try:
-            type_brakes = []
-            while contents := await file.read(1024 * 1024):
-                buffer = StringIO(contents.decode('utf-8-sig'))
-                csv_reader = csv.DictReader(buffer, delimiter=';')
-
-                for rows in csv_reader:
-                    type_brake = TypeBrakeORM(
-                        code=rows["code"],
-                        name=rows["name"],
-                        id_type=type_class_brake.id
-                    )
-                    type_brakes.append(type_brake)
-
-                await self.__type_brake_repo.add_list_type_brake(type_brakes)
-
-        except Exception:
-            raise Exception()
-        finally:
-            await file.close()
 
     async def add_accident(self, accident: PostAccident, time_zone: str) -> Accident:
         obj = await self.__object_repo.get_by_uuid(accident.object)
@@ -317,29 +285,3 @@ class AccidentService:
 
         remove(Path(Path(__path__), settings.static_file, accident.object.name, uuid_accident, name_file))
 
-    async def get_all_signs_accident(self) -> list[SignsAccident] | None:
-        entity = await self.__accident_repo.get_all_signs_accident()
-        if entity is None:
-            return None
-        signs_accident = [SignsAccident.model_validate(entity, from_attributes=True) for entity in entity]
-        return signs_accident
-
-    async def import_signs_accident(self, file: UploadFile):
-        try:
-            signs_accident_list = []
-            while contents := await file.read(1024 * 1024):
-                buffer = StringIO(contents.decode('utf-8-sig'))
-                csv_reader = csv.DictReader(buffer, delimiter=';')
-
-                for rows in csv_reader:
-                    signs_accident = SignsAccidentORM(
-                        code=rows["code"],
-                        name=rows["name"],
-                    )
-                    signs_accident_list.append(signs_accident)
-                await self.__accident_repo.add_list_signs_accident(signs_accident_list)
-
-        except Exception:
-            raise Exception()
-        finally:
-            await file.close()

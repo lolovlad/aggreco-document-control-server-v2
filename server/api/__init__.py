@@ -7,6 +7,7 @@ from .accident import router as accident_router
 from .statistic import router as statistic_router
 from .claim import router as claim_router
 from .file import router as file_router
+from .env import router as env_router
 
 
 router = APIRouter(prefix="/v1")
@@ -18,6 +19,7 @@ router.include_router(accident_router)
 router.include_router(statistic_router)
 router.include_router(claim_router)
 router.include_router(file_router)
+router.include_router(env_router)
 
 
 

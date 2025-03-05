@@ -1,6 +1,7 @@
 from fastapi import Depends, UploadFile
 
 from ..repositories import UserRepository, FileBucketRepository
+from .EnvService import EnvService
 from ..models.User import *
 from ..tables import User, Profession as ProfessionORM
 import csv
@@ -11,8 +12,11 @@ import base64
 
 
 class UserService:
-    def __init__(self, user_rep: UserRepository = Depends()):
+    def __init__(self,
+                 user_rep: UserRepository = Depends(),
+                 env_service: EnvService = Depends()):
         self.__user_repo: UserRepository = user_rep
+        self.__env_service: EnvService = env_service
         self.__file_repo: FileBucketRepository = FileBucketRepository("user")
         self.__count_item: int = 20
 
@@ -52,17 +56,6 @@ class UserService:
         except Exception:
             raise Exception
 
-    async def add_profession(self, name: str, description: str) -> ProfessionORM:
-        entity = ProfessionORM(name=name, description=description)
-        prof = await self.__user_repo.add_prof_user(entity)
-        if prof is None:
-            prof = await self.__user_repo.get_prof_by_name(name)
-        return prof
-
-    async def get_profession_user(self) -> list[Profession]:
-        prof_users = await self.__user_repo.get_all_prof_user()
-        return [Profession.model_validate(obj, from_attributes=True) for obj in prof_users]
-
     async def export_user_from_csv(self, file: UploadFile):
         try:
             set_prof = {}
@@ -74,7 +67,7 @@ class UserService:
                 for rows in csv_reader:
                     prof_name = rows["Профессия"]
                     if prof_name not in set_prof:
-                        prof = await self.add_profession(prof_name)
+                        prof = await self.__env_service.add_profession(prof_name, "")
 
                         set_prof[prof.name] = prof.id
 
@@ -96,10 +89,6 @@ class UserService:
             raise Exception()
         finally:
             await file.close()
-
-    async def get_type_users(self) -> list[GetTypeUser]:
-        type_users = await self.__user_repo.get_all_type_user()
-        return [GetTypeUser.model_validate(obj, from_attributes=True) for obj in type_users]
 
     async def get_user(self, uuid: str) -> UserGet | None:
         user = await self.__user_repo.get_user_by_uuid(uuid)
@@ -125,11 +114,13 @@ class UserService:
         users = [UserGet.model_validate(entity, from_attributes=True) for entity in users_entity]
         return users
 
-    async def update_user(self, uuid: str, user: UserUpdate):
+    async def update_user(self, uuid: str, user: UserUpdate, current_user: UserGet):
         entity = await self.__user_repo.get_user_by_uuid(uuid)
 
-        user_dict = user.model_dump()
+        if entity.type.name in ("admin", "super_admin") and current_user.type.name == "admin":
+            raise Exception
 
+        user_dict = user.model_dump()
         for key in user_dict:
             if key != "password":
                 setattr(entity, key, user_dict[key])
@@ -142,12 +133,11 @@ class UserService:
         except Exception:
             raise Exception
 
-    async def delete_user(self, uuid: str):
+    async def delete_user(self, uuid: str, current_user: UserGet):
+        entity = await self.__user_repo.get_user_by_uuid(uuid)
+        if entity.type.name in ("admin", "super_admin") and current_user.type.name == "admin":
+            raise Exception
         await self.__user_repo.delete(uuid)
-
-    async def delete_prof(self, id_prof: int) -> bool:
-        is_del = await self.__user_repo.delete_prof(id_prof)
-        return is_del
 
     async def upload_signature(self, user: UserGet, file: UploadFile):
         ext = file.filename.split(".")[1]

@@ -31,11 +31,6 @@ class EquipmentRepository:
         result = await self.__session.execute(response)
         return result.scalars().all()
 
-    async def get_all_type_equip(self) -> list[TypeEquipment]:
-        response = select(TypeEquipment)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
     async def add(self, entity: Equipment):
         try:
             self.__session.add(entity)
@@ -67,14 +62,6 @@ class EquipmentRepository:
             await self.__session.commit()
         except Exception:
             await self.__session.rollback()
-
-    async def add_list_type_equipment(self, type_equ: list[TypeEquipment]):
-        try:
-            self.__session.add_all(type_equ)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
 
     async def get_all_equipment(self, uuid_object: str) -> list[Equipment]:
         response = select(Equipment).join(Object).where(Object.uuid == uuid_object).where(Equipment.is_delite == False).order_by(

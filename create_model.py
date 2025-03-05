@@ -67,6 +67,10 @@ async def create_user_contest():
             result = await session.execute(response)
             count = result.scalars().first()
             if count == 0:
+                super_admin_type = TypeUser(
+                    name="super_admin",
+                    description=""
+                )
                 admin_type = TypeUser(
                     name="admin",
                     description=""
@@ -77,10 +81,11 @@ async def create_user_contest():
                 )
                 session.add(admin_type)
                 session.add(user_type)
+                session.add(super_admin_type)
                 await session.commit()
                 admin_user = User(
                     email="lll-ooo-2003@mail.ru",
-                    id_type=admin_type.id
+                    id_type=super_admin_type.id
                 )
                 admin_user.password = "admin"
                 session.add(admin_user)

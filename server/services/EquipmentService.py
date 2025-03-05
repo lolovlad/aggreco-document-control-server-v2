@@ -5,9 +5,6 @@ from ..tables import Equipment, TypeEquipment as TypeEquipmentORM
 from ..repositories import EquipmentRepository
 from ..repositories.ObjectRepository import ObjectRepository
 
-from io import StringIO
-import csv
-
 
 class EquipmentService:
     def __init__(self,
@@ -43,10 +40,6 @@ class EquipmentService:
         entity = await self.__equipment_repo.get_all_equipment(uuid_object)
         equip = [GetEquipment.model_validate(entity, from_attributes=True) for entity in entity]
         return equip
-
-    async def get_all_type_equip(self) -> list[TypeEquipment]:
-        entity = await self.__equipment_repo.get_all_type_equip()
-        return [TypeEquipment.model_validate(i, from_attributes=True) for i in entity]
 
     async def create_equip(self, uuid_object: str, equip_target: PostEquipment):
 
@@ -87,28 +80,6 @@ class EquipmentService:
             await self.__equipment_repo.delete(uuid)
         except Exception:
             raise Exception
-
-    async def import_type_equip_file(self, file: UploadFile):
-        try:
-            type_equipments = []
-            while contents := await file.read(1024 * 1024):
-                buffer = StringIO(contents.decode('utf-8-sig'))
-                csv_reader = csv.DictReader(buffer, delimiter=';')
-
-                for rows in csv_reader:
-
-                    type_equipment = TypeEquipmentORM(
-                        code=rows["code"],
-                        name=rows["name"],
-                    )
-                    type_equipments.append(type_equipment)
-
-                await self.__equipment_repo.add_list_type_equipment(type_equipments)
-
-        except Exception:
-            raise Exception()
-        finally:
-            await file.close()
 
     async def get_equipment_by_search_field(self, uuid_object: str, search_filed: str, count: int) -> list[GetEquipment]:
         data_field = search_filed.replace(" ", "")

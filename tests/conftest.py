@@ -142,6 +142,10 @@ async def create_start_models(run_migration):
                 result = await session.execute(response)
                 count = result.scalars().first()
                 if count == 0:
+                    super_admin_type = TypeUser(
+                        name="super_admin",
+                        description=""
+                    )
                     admin_type = TypeUser(
                         name="admin",
                         description=""
@@ -151,14 +155,32 @@ async def create_start_models(run_migration):
                         description=""
                     )
                     session.add(admin_type)
+                    session.add(super_admin_type)
                     session.add(user_type)
                     await session.commit()
+                    admin_user = User(
+                        email="super_admin@super_admin.com",
+                        id_type=super_admin_type.id
+                    )
+                    admin_user.password = "admin"
+                    session.add(admin_user)
+
                     admin_user = User(
                         email="admin@admin.com",
                         id_type=admin_type.id
                     )
                     admin_user.password = "admin"
                     session.add(admin_user)
+
+                    user_user = User(
+                        email="user@user.com",
+                        id_type=user_type.id,
+                        name="user",
+                        surname="user",
+                        patronymic="user",
+                    )
+                    user_user.password = "user"
+                    session.add(user_user)
                     await session.commit()
             finally:
                 await session.close()
