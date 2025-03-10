@@ -23,15 +23,6 @@ message_error = {
 }
 
 
-@router.get("/state_claim", response_model=list[StateClaimModel], responses={
-    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
-    status.HTTP_404_NOT_FOUND: {"model": Message},
-})
-async def get_state_claim(service: ClaimServices = Depends()):
-    state_claim = await service.get_state_claim()
-    return state_claim
-
-
 @router.get("/page", response_model=list[GetClaim], responses={
                 status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
@@ -88,6 +79,7 @@ async def get_one_claim(uuid: str,
     else:
         return JSONResponse(content={"message": " не существует"},
                             status_code=status.HTTP_404_NOT_FOUND)
+
 
 @router.post("/file/{type_file}/{uuid}", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},

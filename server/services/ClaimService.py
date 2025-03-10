@@ -35,11 +35,6 @@ class ClaimServices:
             sub_page += 1
         return count_row // self.__count_item + sub_page
 
-    async def get_state_claim(self) -> list[StateClaimModel]:
-        entity = await self.__claim_repo.get_state_claim()
-        state_claim = [StateClaimModel.model_validate(i, from_attributes=True) for i in entity]
-        return state_claim
-
     async def get_page_claim(self,
                              num_page: int,
                              user: UserGet) -> list[GetClaim]:

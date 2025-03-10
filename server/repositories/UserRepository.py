@@ -80,3 +80,7 @@ class UserRepository:
         entity.is_deleted = True
 
         await self.__session.commit()
+
+    async def get_user_by_access_email(self, email: str) -> User:
+        response = select(User).where(User.email == email).where(User.is_deleted == False)
+        result = await self.__session.execute(response)

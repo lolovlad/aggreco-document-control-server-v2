@@ -148,3 +148,24 @@ async def test_get_signs_accident(client):
 
     assert response.status_code == 200
     assert len(data) > 0
+
+
+async def test_get_type_event(client):
+    response = client.get("/v1/env/event/type_event")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) > 0
+
+
+async def test_get_state_event(client):
+    response = client.get("/v1/env/event/state_event")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) > 0
+
+
+async def test_get_state_claim(client):
+    response = client.get("/v1/env/state_claim")
+    data = response.json()
+    assert response.status_code == 200
+    assert len(data) > 0

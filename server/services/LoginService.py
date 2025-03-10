@@ -3,12 +3,15 @@ from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 
+from .DocumentService import DocumentService
 from ..repositories import UserRepository
 from ..models.User import UserGet, TypeUser
-from ..models.UserLogin import UserLogin, Token, UserSigIn
+from ..models.UserLogin import UserLogin, Token, RedirectYandex
 from ..settings import settings
 from ..tables import User
 from datetime import datetime, timedelta
+
+import re
 
 oauth2_cheme = OAuth2PasswordBearer(tokenUrl='/v1/login/sign-in/')
 
@@ -24,8 +27,14 @@ class LoginServices:
                                                "AggrecoDocument": 'Bearer'
                                            })
 
-    def __init__(self, repo: UserRepository = Depends()):
+    def __init__(self,
+                 repo: UserRepository = Depends(),
+                 document_service: DocumentService = Depends()):
         self.__repo: UserRepository = repo
+        self.__document_service: DocumentService = document_service
+    def __is_corporate_email(self, email, company_domain):
+        pattern = rf"^[a-zA-Z0-9._%+-]+@{re.escape(company_domain)}$"
+        return bool(re.match(pattern, email))
 
     @classmethod
     def __decode_token(cls, token: str) -> dict:
@@ -100,3 +109,25 @@ class LoginServices:
             return self.create_token(user)
         except Exception:
             raise self.exception_unauthorized
+
+    async def get_url_yandex(self, user_login: UserLogin) -> RedirectYandex | None:
+        user = await self.__repo.get_user_by_email(user_login.email)
+        if user:
+            if user.check_password(user_login.password):
+                token = self.create_token(user).access_token
+                data = RedirectYandex(
+                    url=f"https://oauth.yandex.ru/authorize?response_type=code&client_id={settings.client_id}&state={token}"
+                )
+                return data
+        return None
+
+    async def get_token_code(self, code: str, token: str) -> Token | None:
+        token_yandex = await self.__document_service.get_token_user_from_yandex(code)
+        if token:
+            user_yandex = await self.__document_service.get_user_from_yandex(token_yandex)
+            if self.__is_corporate_email(user_yandex.default_email, "aggreko-eurasia.ru"):
+                user = self.validate_token(token)
+                user = await self.__repo.get_user_by_email(user.email)
+                if user:
+                    return self.create_token(user)
+        return None

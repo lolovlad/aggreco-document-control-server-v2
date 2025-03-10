@@ -4,6 +4,8 @@ from ..models.User import GetTypeUser, Profession
 from ..models.Equipment import TypeEquipment
 from ..models.Object import StateObject, Region
 from ..models.Accident import GetTypeBrake, SignsAccident
+from ..models.Event import TypeEvent, StateEvent
+from ..models.Claim import StateClaimModel
 
 from ..tables import (Profession as ProfessionORM,
                       TypeEquipment as TypeEquipmentORM,
@@ -154,3 +156,16 @@ class EnvService:
             raise Exception()
         finally:
             await file.close()
+
+    async def get_list_type_event(self) -> list[TypeEvent]:
+        lists = await self.__env_repo.get_all_type_event()
+        return [TypeEvent.model_validate(i, from_attributes=True) for i in lists]
+
+    async def get_list_state_event(self) -> list[StateEvent]:
+        lists = await self.__env_repo.get_all_state_event()
+        return [StateEvent.model_validate(i, from_attributes=True) for i in lists]
+
+    async def get_state_claim(self) -> list[StateClaimModel]:
+        entity = await self.__env_repo.get_state_claim()
+        state_claim = [StateClaimModel.model_validate(i, from_attributes=True) for i in entity]
+        return state_claim

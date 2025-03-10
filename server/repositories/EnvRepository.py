@@ -11,7 +11,10 @@ from ..tables import (TypeUser,
                       ClassBrake,
                       SignsAccident,
                       FileDocument,
-                      User)
+                      User,
+                      TypeEvent,
+                      StateEvent,
+                      StateClaim)
 
 from ..database import get_session
 
@@ -113,3 +116,18 @@ class EnvRepository:
         except:
             await self.__session.rollback()
             raise Exception
+
+    async def get_all_type_event(self) -> list[TypeEvent]:
+        response = select(TypeEvent)
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
+    async def get_all_state_event(self) -> list[StateEvent]:
+        response = select(StateEvent)
+        result = await self.__session.execute(response)
+        return result.scalars().all()
+
+    async def get_state_claim(self) -> list[StateClaim]:
+        response = select(StateClaim)
+        result = await self.__session.execute(response)
+        return result.scalars().all()

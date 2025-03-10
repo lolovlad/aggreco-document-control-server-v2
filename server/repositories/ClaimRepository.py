@@ -3,7 +3,7 @@ from sqlalchemy import select, func, or_
 
 from fastapi import Depends
 
-from ..tables import Claim, StateClaim, Accident, Object, ObjectToUser
+from ..tables import Claim, Accident, Object, ObjectToUser, StateClaim
 from ..database import get_session
 
 from datetime import datetime
@@ -24,11 +24,6 @@ class ClaimRepository:
                         .where(ObjectToUser.id_user == id_user))
         result = await self.__session.execute(response)
         return result.scalars().first()
-
-    async def get_state_claim(self) -> list[StateClaim]:
-        response = select(StateClaim)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
 
     async def get_limit_claim(self, id_user: int, start: int, end: int) -> list[Claim]:
         response = (select(Claim)

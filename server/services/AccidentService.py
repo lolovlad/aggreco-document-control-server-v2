@@ -188,14 +188,6 @@ class AccidentService:
         time_line_series = self.__convert_time_line(accident.time_line)
         return time_line_series
 
-    async def get_list_type_event(self) -> list[TypeEvent]:
-        lists = await self.__event_repo.get_all_type_event()
-        return [TypeEvent.model_validate(i, from_attributes=True) for i in lists]
-
-    async def get_list_state_event(self) -> list[StateEvent]:
-        lists = await self.__event_repo.get_all_state_event()
-        return [StateEvent.model_validate(i, from_attributes=True) for i in lists]
-
     async def get_list_event(self, uuid: str) -> list[GetEvent] | None:
         entities = await self.__event_repo.get_all_event_by_uuid_accident(uuid)
         if entities is not None:

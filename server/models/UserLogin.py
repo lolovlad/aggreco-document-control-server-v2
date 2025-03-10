@@ -16,3 +16,8 @@ class UserSigIn(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+
+class RedirectYandex(BaseModel):
+    url: str
+

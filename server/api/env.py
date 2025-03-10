@@ -10,6 +10,8 @@ from ..models.User import UserGet
 from ..models.Equipment import TypeEquipment
 from ..models.Object import StateObject, Region
 from ..models.Accident import SignsAccident, GetTypeBrake
+from ..models.Event import StateEvent, TypeEvent
+from ..models.Claim import StateClaimModel
 
 from ..repositories import FileBucketRepository
 from ..functions import access_control
@@ -213,3 +215,37 @@ async def import_type_brake(file: UploadFile = File(...),
         return JSONResponse(content={"message": "ошибка добавления"},
                                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@router.get("/event/state_event", response_model=list[StateEvent], responses={
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    status.HTTP_404_NOT_FOUND: {"model": Message},
+})
+async def get_state_event(service: EnvService = Depends()):
+    state_event = await service.get_list_state_event()
+    if state_event is not None:
+        return state_event
+    else:
+        JSONResponse(content={"message": "Не найдено"},
+                     status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.get("/event/type_event", response_model=list[TypeEvent], responses={
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    status.HTTP_404_NOT_FOUND: {"model": Message},
+})
+async def get_type_event(service: EnvService = Depends()):
+    type_event = await service.get_list_type_event()
+    if type_event is not None:
+        return type_event
+    else:
+        JSONResponse(content={"message": "Не найдено"},
+                     status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.get("/state_claim", response_model=list[StateClaimModel], responses={
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    status.HTTP_404_NOT_FOUND: {"model": Message},
+})
+async def get_state_claim(service: EnvService = Depends()):
+    state_claim = await service.get_state_claim()
+    return state_claim

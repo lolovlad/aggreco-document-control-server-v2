@@ -84,7 +84,7 @@ async def create_user_contest():
                 session.add(super_admin_type)
                 await session.commit()
                 admin_user = User(
-                    email="lll-ooo-2003@mail.ru",
+                    email="vladislav.skripnik@aggreko-eurasia.ru",
                     id_type=super_admin_type.id
                 )
                 admin_user.password = "admin"

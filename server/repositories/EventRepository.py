@@ -46,13 +46,3 @@ class EventRepository:
             await self.__session.commit()
         except Exception:
             await self.__session.rollback()
-
-    async def get_all_type_event(self) -> list[TypeEvent]:
-        response = select(TypeEvent)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
-    async def get_all_state_event(self) -> list[StateEvent]:
-        response = select(StateEvent)
-        result = await self.__session.execute(response)
-        return result.scalars().all()

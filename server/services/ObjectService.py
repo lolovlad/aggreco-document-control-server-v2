@@ -53,7 +53,7 @@ class ObjectService:
         return objects
 
     async def get_all_object(self, user: UserGet) -> list[GetObject]:
-        if user.type.name == "admin":
+        if user.type.name != "user":
             filter_user = 0
         else:
             user = await self.__user_repo.get_user_by_uuid(user.uuid)
