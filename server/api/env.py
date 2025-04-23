@@ -7,7 +7,7 @@ from ..models.User import GetTypeUser, Profession
 
 from ..models.Message import Message
 from ..models.User import UserGet
-from ..models.Equipment import TypeEquipment
+from ..models.Equipment import TypeEquipment, PostTypeEquipment
 from ..models.Object import StateObject, Region
 from ..models.Accident import SignsAccident, GetTypeBrake
 from ..models.Event import StateEvent, TypeEvent
@@ -82,6 +82,19 @@ async def delete_profession(id_prof: int,
 async def get_type_equipment(service: EnvService = Depends()):
     state = await service.get_all_type_equip()
     return state
+
+
+@router.post("/type_equip", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+@access_control(["super_admin"])
+async def add_type_equipment(type_equipment: PostTypeEquipment,
+                             service: EnvService = Depends(),
+                             current_user: UserGet = Depends(get_current_user)):
+    type_equipment = await service.add_type_equipment(type_equipment)
+    return JSONResponse(content={"message": "добавлено"},
+                        status_code=status.HTTP_201_CREATED)
 
 
 @router.post("/type_equip/import_file", responses={

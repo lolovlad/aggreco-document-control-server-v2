@@ -207,7 +207,8 @@ class AccidentService:
             date_finish=target.date_finish,
             id_accident=accident.id,
             id_state_event=target.id_state_event,
-            id_type_event=target.id_type_event
+            id_type_event=target.id_type_event,
+            responsible=target.responsible
         )
 
         await self.__event_repo.add(entity)

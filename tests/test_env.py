@@ -1,4 +1,5 @@
 from server.models.User import Profession
+from server.models.Equipment import PostTypeEquipment
 
 
 def get_token(client):
@@ -69,6 +70,38 @@ async def test_import_type_equip(client):
     },
                            files={"file": open("files/типы обарудованния.csv", "rb")})
     assert response.status_code == 201
+
+
+async def test_add_type_equip(client):
+    response = client.get("/v1/env/type_equip")
+    data = response.json()
+    old_type = len(data)
+    token = get_token(client)
+    type_equip = PostTypeEquipment(
+        name="test_eqipment",
+        code="1232414213231",
+        description="Описание"
+    )
+    response = client.post("/v1/env/type_equip", headers={
+        "Authorization": f"Bearer {token}",
+    },
+    json=type_equip.model_dump())
+
+    response_data = client.get("/v1/env/type_equip")
+    data = response_data.json()
+    new_type = len(data)
+
+    assert response.status_code == 201
+    assert new_type - old_type == 1
+
+
+#async def test_import_type_equip(client):
+#    token = get_token(client)
+#    response = client.post("/v1/env/type_equip/import_file", headers={
+#        "Authorization": f"Bearer {token}",
+#    },
+#                           files={"file": open("files/типы обарудованния.csv", "rb")})
+#    assert response.status_code == 201
 
 
 async def test_get_type_equipment(client):

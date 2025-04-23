@@ -7,6 +7,8 @@ from ..repositories import ClaimRepository, FileBucketRepository, UserRepository
 
 from functools import partial
 
+from datetime import datetime, timezone
+
 
 class ClaimServices:
     def __init__(self,
@@ -117,7 +119,7 @@ class ClaimServices:
 
     async def delete_claim(self, uuid: str, user: UserGet):
         claim = await self.__claim_repo.get_by_uuid(uuid)
-        if (user.type.name == "admin") or (user.type.name == "user" and claim.state_claim.name == "draft"):
+        if (user.type.name in ("admin", "super_admin")) or (user.type.name == "user" and claim.state_claim.name == "draft"):
             if claim.edit_document is not None:
                 await self.__file_repo.delete_object(claim.edit_document)
 
@@ -133,23 +135,30 @@ class ClaimServices:
                                  state_claim: str,
                                  user: UserGet):
         claim = await self.__claim_repo.get_by_uuid(uuid_claim)
-
         accident = await self.__accident_repo.get_by_uuid(claim.accident.uuid)
-
-        if (claim.state_claim.name == "draft" or claim.state_claim.name == "under_development") and user.type.name == "user":
-            state_claim_model = await self.__claim_repo.get_state_claim_by_name("under_consideration")
-            state_accident = await self.__accident_repo.get_state_accident_by_name("pending")
-
-            claim.id_state_claim = state_claim_model.id
-            accident.id_state_accident = state_accident.id
-        elif claim.state_claim.name == "under_consideration" and user.type.name == "admin":
-            if state_claim == "accepted":
-                state_claim_model = await self.__claim_repo.get_state_claim_by_name("accepted")
-                state_accident = await self.__accident_repo.get_state_accident_by_name("accepted")
+        if user.type.name == "user":
+            if claim.state_claim.name in ("draft", "under_development"):
+                state_claim_model = await self.__claim_repo.get_state_claim_by_name("under_consideration")
+                state_accident = await self.__accident_repo.get_state_accident_by_name("pending")
+                claim.id_state_claim = state_claim_model.id
                 accident.id_state_accident = state_accident.id
-            else:
-                state_claim_model = await self.__claim_repo.get_state_claim_by_name("under_development")
-            claim.id_state_claim = state_claim_model.id
+            elif claim.state_claim.name == "under_consideration":
+                time_delta = datetime.now(timezone.utc) - claim.datetime
+                if time_delta.seconds <= 24 * 60 * 60:
+                    state_claim_model = await self.__claim_repo.get_state_claim_by_name("draft")
+                    claim.id_state_claim = state_claim_model.id
+                else:
+                    raise Exception
+
+        elif user.type.name in ("admin", "super_admin"):
+            if claim.state_claim.name == "under_consideration":
+                if state_claim == "accepted":
+                    state_claim_model = await self.__claim_repo.get_state_claim_by_name("accepted")
+                    state_accident = await self.__accident_repo.get_state_accident_by_name("accepted")
+                    accident.id_state_accident = state_accident.id
+                else:
+                    state_claim_model = await self.__claim_repo.get_state_claim_by_name("under_development")
+                claim.id_state_claim = state_claim_model.id
 
         await self.__claim_repo.update(claim)
         await self.__accident_repo.update(accident)

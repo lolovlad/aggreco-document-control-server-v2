@@ -161,7 +161,7 @@ async def update_claim_state(uuid_claim: str,
     try:
         await service.update_state_claim(uuid_claim, state_claim, current_user)
     except Exception:
-        return JSONResponse(content={"message": "ошибка обновления"},
+        return JSONResponse(content={"message": "ошибка обновления состояния"},
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

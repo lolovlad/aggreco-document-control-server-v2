@@ -1,7 +1,7 @@
 from fastapi import Depends, UploadFile
 
 from ..models.User import GetTypeUser, Profession
-from ..models.Equipment import TypeEquipment
+from ..models.Equipment import TypeEquipment, PostTypeEquipment
 from ..models.Object import StateObject, Region
 from ..models.Accident import GetTypeBrake, SignsAccident
 from ..models.Event import TypeEvent, StateEvent
@@ -70,6 +70,14 @@ class EnvService:
     async def get_all_type_equip(self) -> list[TypeEquipment]:
         entity = await self.__env_repo.get_all_type_equip()
         return [TypeEquipment.model_validate(i, from_attributes=True) for i in entity]
+
+    async def add_type_equipment(self, type_equipment: PostTypeEquipment) -> ProfessionORM:
+        entity = TypeEquipmentORM(
+            name=type_equipment.name,
+            code=type_equipment.code,
+            description=type_equipment.description)
+        type_equipment = await self.__env_repo.add_type_equipment(entity)
+        return type_equipment
 
     async def get_all_state_object(self) -> list[StateObject]:
         entity = await self.__env_repo.get_all_state_object()

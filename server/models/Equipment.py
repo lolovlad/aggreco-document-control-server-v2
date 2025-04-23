@@ -3,6 +3,12 @@ from pydantic import BaseModel, UUID4, field_serializer
 from .User import UserGet
 
 
+class PostTypeEquipment(BaseModel):
+    name: str
+    code: str
+    description: str | None
+
+
 class TypeEquipment(BaseModel):
     id: int
     name: str

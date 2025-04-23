@@ -63,6 +63,15 @@ class EnvRepository:
             await self.__session.rollback()
             return None
 
+    async def add_type_equipment(self, type_equipment: TypeEquipment) -> TypeEquipment | None:
+        try:
+            self.__session.add(type_equipment)
+            await self.__session.commit()
+            return type_equipment
+        except:
+            await self.__session.rollback()
+            return None
+
     async def get_prof_by_name(self, prof_name: str) -> Profession | None:
         response = select(Profession).where(Profession.name == prof_name)
         result = await self.__session.execute(response)

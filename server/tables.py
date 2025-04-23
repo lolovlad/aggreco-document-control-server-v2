@@ -206,6 +206,7 @@ class Event(base):
 
     id_type_event = Column(ForeignKey("type_event.id"))
     type_event = relationship(TypeEvent, lazy="joined")
+    responsible = Column(String, nullable=True)
 
 
 class StateAccident(base):

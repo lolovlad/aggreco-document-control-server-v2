@@ -19,6 +19,7 @@ class BaseEvent(BaseModel):
     date_finish: datetime
     id_state_event: int
     id_type_event: int
+    responsible: str | None
 
 
 class GetEvent(BaseEvent):
