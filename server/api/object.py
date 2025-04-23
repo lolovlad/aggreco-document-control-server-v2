@@ -234,7 +234,7 @@ async def delete_equipment(
         current_user: UserGet = Depends(get_current_user)):
     is_edit = await service_object.is_user_in_object_by_uuid_equipment(current_user, uuid_equipment)
 
-    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_user"):
+    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_admin"):
         try:
             await service.delete_equip(uuid_equipment)
             return JSONResponse(content={"message": "Удалено"},
@@ -258,7 +258,7 @@ async def update_equipment(uuid_equipment: str,
                            current_user: UserGet = Depends(get_current_user)):
     is_edit = await service_object.is_user_in_object_by_uuid_equipment(current_user, uuid_equipment)
 
-    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_user"):
+    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_admin"):
         try:
             await service.update_equip(uuid_equipment, target_equipment)
             return JSONResponse(content={"message": "Обновленно"},
