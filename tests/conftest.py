@@ -160,14 +160,20 @@ async def create_start_models(run_migration):
                     await session.commit()
                     admin_user = User(
                         email="super_admin@super_admin.com",
-                        id_type=super_admin_type.id
+                        id_type=super_admin_type.id,
+                        name="popo",
+                        surname="popo",
+                        patronymic="popo",
                     )
                     admin_user.password = "admin"
                     session.add(admin_user)
 
                     admin_user = User(
                         email="admin@admin.com",
-                        id_type=admin_type.id
+                        id_type=admin_type.id,
+                        name="admin",
+                        surname="admin",
+                        patronymic="admin",
                     )
                     admin_user.password = "admin"
                     session.add(admin_user)

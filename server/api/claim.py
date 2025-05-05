@@ -31,10 +31,12 @@ message_error = {
 async def get_page_claim(
         response: Response,
         page: int = 1,
+        per_item_page: int = 20,
         uuid_object: str | None = None,
         current_user: UserGet = Depends(get_current_user),
         service: ClaimServices = Depends()):
 
+    service.count_item = per_item_page
     count_page = await service.get_count_page(uuid_object)
     claims = await service.get_page_claim(page, current_user)
 
@@ -55,15 +57,15 @@ async def add_claim(request: Request,
                     accident_service: AccidentService = Depends()):
 
     client_timezone = request.headers.get("X-Timezone", "Unknown")
-    #try:
-    accident = await accident_service.add_accident(claim.accident, client_timezone)
+    try:
+        accident = await accident_service.add_accident(claim.accident, client_timezone)
 
-    await claim_service.add_claim(current_user.uuid, accident.id, claim)
-    return JSONResponse(content={"message": "добавлено"},
-                        status_code=status.HTTP_201_CREATED)
-    #except Exception:
-    #    return JSONResponse(content={"message": "ошибка добавления"},
-    #                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        await claim_service.add_claim(current_user.uuid, accident.id, claim)
+        return JSONResponse(content={"message": "добавлено"},
+                            status_code=status.HTTP_201_CREATED)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка добавления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/get/{uuid}", responses={
@@ -71,7 +73,6 @@ async def add_claim(request: Request,
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 }, response_model=GetClaim)
 async def get_one_claim(uuid: str,
-                        current_user: UserGet = Depends(get_current_user),
                         service: ClaimServices = Depends()):
     obj = await service.get_claim(uuid)
     if obj is not None:

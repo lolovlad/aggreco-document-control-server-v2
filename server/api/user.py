@@ -15,7 +15,7 @@ router = APIRouter(prefix="/user", tags=["user"])
 
 message_error = {
     status.HTTP_406_NOT_ACCEPTABLE: JSONResponse(content={"message": "отказ в доступе"},
-                                                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                                                 status_code=status.HTTP_406_NOT_ACCEPTABLE)
 }
 
 
@@ -62,12 +62,14 @@ async def create_user(user_target: UserPost,
 @access_control(["admin", "super_admin"])
 async def get_page_user(response: Response,
                         page: int = 1,
+                        per_item_page: int = 20,
                         type_user: str | None = None,
                         current_user: UserGet = Depends(get_current_user),
                         user_service: UserService = Depends()):
+    user_service.count_item = per_item_page
     count_page = await user_service.get_count_page()
     response.headers["X-Count-Page"] = str(count_page)
-    response.headers["X-Count-Item"] = str(user_service.count_item)
+    response.headers["X-Count-Item"] = str(per_item_page)
     users = await user_service.get_page_user(page)
     return users
 
@@ -168,4 +170,25 @@ async def add_signature(file: UploadFile,
                         current_user: UserGet = Depends(get_current_user)):
     await user_service.upload_signature(current_user, file)
     return {"filenames": file.filename}
+
+
+@router.put("/profile/update/{uuid}",  responses={
+            status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+            status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+            status.HTTP_205_RESET_CONTENT: {}
+})
+async def update_profile_user(uuid: str,
+                              user_update: UserUpdate,
+                              service: UserService = Depends(),
+                              current_user: UserGet = Depends(get_current_user)):
+    try:
+        if uuid == str(current_user.uuid):
+            await service.update_user(uuid, user_update, current_user)
+            return JSONResponse(status_code=status.HTTP_205_RESET_CONTENT, content=None)
+        else:
+            return JSONResponse(content={"message": "отказ в доступе"},
+                                status_code=status.HTTP_406_NOT_ACCEPTABLE)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

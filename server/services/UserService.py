@@ -118,7 +118,8 @@ class UserService:
         entity = await self.__user_repo.get_user_by_uuid(uuid)
 
         if entity.type.name in ("admin", "super_admin") and current_user.type.name == "admin":
-            raise Exception
+            if uuid != str(current_user.uuid):
+                raise Exception
 
         user_dict = user.model_dump()
         for key in user_dict:

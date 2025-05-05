@@ -45,9 +45,11 @@ async def add_object(object_target: PostObject,
 @access_control(["admin", "super_admin"])
 async def get_page(response: Response,
                    page: int = 1,
+                   per_item_page: int = 20,
                    state_object: str | None = None,
                    current_user: UserGet = Depends(get_current_user),
                    service: ObjectService = Depends()):
+    service.count_item = per_item_page
     count_page = await service.get_count_page()
     response.headers["X-Count-Page"] = str(count_page)
     response.headers["X-Count-Item"] = str(service.count_item)
@@ -136,9 +138,11 @@ async def get_page_equipment(
         uuid: str,
         response: Response,
         page: int = 1,
+        per_item_page: int = 20,
         type_equip: str | None = None,
         current_user: UserGet = Depends(get_current_user),
         service: EquipmentService = Depends()):
+    service.count_item = per_item_page
     count_page = await service.get_count_page(uuid)
     response.headers["X-Count-Page"] = str(count_page)
     response.headers["X-Count-Item"] = str(service.count_item)
@@ -276,14 +280,12 @@ async def update_equipment(uuid_equipment: str,
                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
                 status.HTTP_200_OK: {"model": Message}
             })
+@access_control(["admin", "super_admin"])
 async def get_users_to_object(
         uuid: str,
         current_user: UserGet = Depends(get_current_user),
         service: ObjectService = Depends()):
-    if current_user.type.name == "admin":
-        return await service.get_users_object(uuid)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    return await service.get_users_object(uuid)
 
 
 @router.post("/{uuid_object}/user/{uuid_user}", responses={

@@ -35,9 +35,11 @@ message_error = {
 async def get_page_accident(
         response: Response,
         page: int = 1,
+        per_item_page: int = 20,
         uuid_object: str | None = None,
         current_user: UserGet = Depends(get_current_user),
         service: AccidentService = Depends()):
+    service.count_item = per_item_page
     count_page = await service.get_count_page(uuid_object)
     response.headers["X-Count-Page"] = str(count_page)
     response.headers["X-Count-Item"] = str(service.count_item)

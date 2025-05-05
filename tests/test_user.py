@@ -20,6 +20,7 @@ def get_token(client):
                            })
     return response.json()["access_token"]
 
+
 def get_token_superuser(client):
     username = "super_admin@super_admin.com"
     password = "admin"
@@ -144,3 +145,26 @@ async def test_delete_user(client):
     response = client.delete(f"/v1/user/{data['uuid']}", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
 
+
+async def test_update_profile(client):
+    token = get_token(client)
+    response = client.get("/v1/user/search", params={"search_field": "tes"}, headers={"Authorization": f"Bearer {token}"},)
+
+    data = response.json()[0]
+
+    user_update = UserUpdate.model_validate(data)
+
+    user_update.email = "test1@test1.ru"
+
+    response = client.put(f"/v1/user/profile/update/{data['uuid']}", headers={"Authorization": f"Bearer {token}"}, json=user_update.model_dump())
+    assert response.status_code == 406
+    response = client.get("/v1/user/search", params={"search_field": "admin admin admin"},
+                          headers={"Authorization": f"Bearer {token}"}, )
+
+    data = response.json()[0]
+
+    user_update = UserUpdate.model_validate(data)
+    user_update.patronymic = "admin1"
+    response = client.put(f"/v1/user/profile/update/{data['uuid']}", headers={"Authorization": f"Bearer {token}"},
+                          json=user_update.model_dump())
+    assert response.status_code == 205
