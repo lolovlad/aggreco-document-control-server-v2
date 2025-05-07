@@ -22,6 +22,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 base = declarative_base()
 
+class DeleteMixin(object):
+    is_delite = Column(Boolean, default=False, nullable=True, server_default="False")
 
 class TypeUser(base):
     __tablename__ = "type_user"
@@ -216,7 +218,7 @@ class StateAccident(base):
     description = Column(String(128), nullable=True)
 
 
-class Accident(base):
+class Accident(DeleteMixin, base):
     __tablename__ = "accident"
     id = Column(Integer, autoincrement=True, primary_key=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)

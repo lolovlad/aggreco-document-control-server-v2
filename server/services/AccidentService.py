@@ -278,3 +278,7 @@ class AccidentService:
 
         remove(Path(Path(__path__), settings.static_file, accident.object.name, uuid_accident, name_file))
 
+    async def delete_accident(self, uuid_accident: str):
+        accident = await self.__accident_repo.get_by_uuid(uuid_accident)
+        accident.is_delite = True
+        await self.__accident_repo.update(accident)

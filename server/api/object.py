@@ -214,7 +214,7 @@ async def add_equipment(
         current_user: UserGet = Depends(get_current_user)):
     is_edit = await service_object.is_user_in_object(current_user, uuid)
 
-    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_user"):
+    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_admin"):
         try:
             await service.create_equip(uuid, equipment_target)
             return JSONResponse(content={"message": "добавлено"},

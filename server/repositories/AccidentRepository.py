@@ -13,17 +13,17 @@ class AccidentRepository:
 
     async def count_row(self, uuid_object: str) -> int:
         if uuid_object is None:
-            response = select(func.count(Accident.id))
+            response = select(func.count(Accident.id)).where(Accident.is_delite == False)
         else:
-            response = select(func.count(Accident.id)).join(Object).where(Object.uuid == uuid_object)
+            response = select(func.count(Accident.id)).where(Accident.is_delite == False).join(Object).where(Object.uuid == uuid_object)
         result = await self.__session.execute(response)
         return result.scalars().first()
 
     async def get_limit_accident(self, uuid_object: str, start: int, end: int) -> list[Accident]:
         if uuid_object is None:
-            response = select(Accident).offset(start).fetch(end).order_by(Accident.id)
+            response = select(Accident).where(Accident.is_delite == False).offset(start).fetch(end).order_by(Accident.id)
         else:
-            response = select(Accident).join(Object).where(Object.uuid == uuid_object).offset(start).fetch(end).order_by(Accident.id)
+            response = select(Accident).join(Object).where(Object.uuid == uuid_object).where(Accident.is_delite == False).offset(start).fetch(end).order_by(Accident.id)
         result = await self.__session.execute(response)
         return result.scalars().unique().all()
 
@@ -49,7 +49,7 @@ class AccidentRepository:
             raise Exception
 
     async def get_state_accident_by_name(self, name: str) -> StateAccident:
-        response = select(StateAccident).where(StateAccident.name == name)
+        response = select(StateAccident).where(Accident.is_delite == False).where(StateAccident.name == name)
         result = await self.__session.execute(response)
         return result.scalars().first()
 
