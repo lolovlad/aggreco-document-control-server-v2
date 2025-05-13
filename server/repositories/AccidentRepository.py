@@ -19,11 +19,11 @@ class AccidentRepository:
         result = await self.__session.execute(response)
         return result.scalars().first()
 
-    async def get_limit_accident(self, uuid_object: str, start: int, end: int) -> list[Accident]:
+    async def get_limit_accident(self, uuid_object: str, start: int, count: int) -> list[Accident]:
         if uuid_object is None:
-            response = select(Accident).where(Accident.is_delite == False).offset(start).fetch(end).order_by(Accident.id)
+            response = select(Accident).where(Accident.is_delite == False).offset(start).fetch(count).order_by(Accident.id)
         else:
-            response = select(Accident).join(Object).where(Object.uuid == uuid_object).where(Accident.is_delite == False).offset(start).fetch(end).order_by(Accident.id)
+            response = select(Accident).join(Object).where(Object.uuid == uuid_object).where(Accident.is_delite == False).offset(start).fetch(count).order_by(Accident.id)
         result = await self.__session.execute(response)
         return result.scalars().unique().all()
 

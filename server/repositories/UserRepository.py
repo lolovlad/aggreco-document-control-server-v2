@@ -15,8 +15,8 @@ class UserRepository:
         result = await self.__session.execute(response)
         return result.scalars().first()
 
-    async def get_limit_user(self, start: int, end: int) -> list[User]:
-        response = select(User).offset(start).limit(end).order_by(User.id)
+    async def get_limit_user(self, start: int, count: int) -> list[User]:
+        response = select(User).offset(start).fetch(count).order_by(User.id)
         result = await self.__session.execute(response)
         return result.scalars().all()
 

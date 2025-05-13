@@ -47,8 +47,7 @@ class AccidentService:
 
     async def get_page_accident(self, uuid_object: str, num_page: int) -> list[GetLightweightAccident]:
         start = (num_page - 1) * self.__count_item
-        end = num_page * self.__count_item
-        entity = await self.__accident_repo.get_limit_accident(uuid_object, start, end)
+        entity = await self.__accident_repo.get_limit_accident(uuid_object, start, self.__count_item)
         accident = [GetLightweightAccident.model_validate(entity, from_attributes=True) for entity in entity]
         return accident
 

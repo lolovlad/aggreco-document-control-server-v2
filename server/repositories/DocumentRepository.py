@@ -16,8 +16,8 @@ class DocumentRepository:
         result = await self.__session.execute(response)
         return result.scalars().first()
 
-    async def get_limit_user(self, start: int, end: int) -> list[Document]:
-        response = select(Document).offset(start).fetch(end).order_by(Document.id)
+    async def get_limit_user(self, start: int, count: int) -> list[Document]:
+        response = select(Document).offset(start).fetch(count).order_by(Document.id)
         result = await self.__session.execute(response)
         return result.unique().scalars().all()
 

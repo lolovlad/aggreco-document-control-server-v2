@@ -15,18 +15,17 @@ class EquipmentRepository:
         response = (select(func.count(Equipment.id))
                     .join(Object)
                     .where(Object.uuid == uuid_object)
-                    .where(Object.is_deleted == False)
                     .where(Equipment.is_delite == False))
         result = await self.__session.execute(response)
         return result.scalars().first()
 
-    async def get_limit_equip(self, uuid_object: str, start: int, end: int) -> list[Equipment]:
+    async def get_limit_equip(self, uuid_object: str, start: int, count: int) -> list[Equipment]:
         response = (select(Equipment)
                     .join(Object)
                     .where(Object.uuid == uuid_object)
                     .where(Equipment.is_delite == False)
                     .offset(start)
-                    .fetch(end)
+                    .fetch(count)
                     .order_by(Equipment.id))
         result = await self.__session.execute(response)
         return result.scalars().all()

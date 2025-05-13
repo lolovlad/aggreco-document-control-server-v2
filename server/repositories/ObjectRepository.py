@@ -16,8 +16,8 @@ class ObjectRepository:
         result = await self.__session.execute(response)
         return result.scalars().first()
 
-    async def get_limit_object(self, start: int, end: int) -> list[Object]:
-        response = select(Object).where(Object.is_deleted == False).offset(start).fetch(end).order_by(Object.id)
+    async def get_limit_object(self, start: int, count: int) -> list[Object]:
+        response = select(Object).where(Object.is_deleted == False).offset(start).fetch(count).order_by(Object.id)
         result = await self.__session.execute(response)
         return result.scalars().all()
 

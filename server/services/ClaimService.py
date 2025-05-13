@@ -41,13 +41,12 @@ class ClaimServices:
                              num_page: int,
                              user: UserGet) -> list[GetClaim]:
         start = (num_page - 1) * self.__count_item
-        end = num_page * self.__count_item
 
         if user.type.name == "user":
             user = await self.__user_repo.get_user_by_uuid(user.uuid)
-            entity = await self.__claim_repo.get_limit_claim(user.id, start, end)
+            entity = await self.__claim_repo.get_limit_claim(user.id, start, self.__count_item)
         else:
-            entity = await self.__claim_repo.get_limit_claim_admin(start, end)
+            entity = await self.__claim_repo.get_limit_claim_admin(start, self.__count_item)
         claim = [GetClaim.model_validate(entity, from_attributes=True) for entity in entity]
         return claim
 

@@ -42,8 +42,7 @@ class DocumentService:
 
     async def get_document_page(self, num_page: int) -> list[DocumentGetView]:
         start = (num_page - 1) * self.__count_item
-        end = num_page * self.__count_item
-        document_entity = await self.__doc_repo.get_limit_user(start, end)
+        document_entity = await self.__doc_repo.get_limit_user(start, self.__count_item)
         documents = [DocumentGetView.model_validate(entity, from_attributes=True) for entity in document_entity]
         return documents
 

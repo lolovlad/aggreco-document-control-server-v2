@@ -25,14 +25,14 @@ class ClaimRepository:
         result = await self.__session.execute(response)
         return result.scalars().first()
 
-    async def get_limit_claim(self, id_user: int, start: int, end: int) -> list[Claim]:
+    async def get_limit_claim(self, id_user: int, start: int, count: int) -> list[Claim]:
         response = (select(Claim)
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(Object, Accident.id_object == Object.id)
                     .join(ObjectToUser, ObjectToUser.id_object == Object.id)
                     .where(ObjectToUser.id_user == id_user)
                     .offset(start)
-                    .fetch(end)
+                    .fetch(count)
                     .order_by(Claim.id))
         result = await self.__session.execute(response)
         return result.scalars().unique().all()

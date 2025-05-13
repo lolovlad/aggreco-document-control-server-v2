@@ -146,7 +146,8 @@ async def get_page_equipment(
     count_page = await service.get_count_page(uuid)
     response.headers["X-Count-Page"] = str(count_page)
     response.headers["X-Count-Item"] = str(service.count_item)
-    return await service.get_page_equip(uuid, page)
+    t = await service.get_page_equip(uuid, page)
+    return t
 
 
 @router.get("/{uuid}/equipment/search",

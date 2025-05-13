@@ -31,8 +31,7 @@ class EquipmentService:
 
     async def get_page_equip(self, uuid_object: str, num_page: int) -> list[GetEquipment]:
         start = (num_page - 1) * self.__count_item
-        end = num_page * self.__count_item
-        entity = await self.__equipment_repo.get_limit_equip(uuid_object, start, end)
+        entity = await self.__equipment_repo.get_limit_equip(uuid_object, start, self.__count_item)
         equip = [GetEquipment.model_validate(entity, from_attributes=True) for entity in entity]
         return equip
 
