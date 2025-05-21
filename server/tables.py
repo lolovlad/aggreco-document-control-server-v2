@@ -17,6 +17,7 @@ from datetime import datetime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
+from sqlalchemy import func
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -291,11 +292,14 @@ class Claim(base):
     main_document = Column(String, nullable=True)
 
     edit_document = Column(String, nullable=True)
-
     comment = Column(Text, nullable=True, default="Нет")
-
     id_accident = Column(ForeignKey("accident.id"))
     accident = relationship(Accident, lazy="joined", cascade="all, delete")
+
+    last_datetime_edit = Column(DateTime(timezone=True),
+                                nullable=False,
+                                onupdate=func.now(),
+                                server_default=func.now())
 
 
 class FileDocument(base):
