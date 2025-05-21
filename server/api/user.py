@@ -106,11 +106,10 @@ async def import_to_file(file: UploadFile = File(...),
                 status.HTTP_200_OK: {"model": Message}
             })
 async def get_users_by_search(search_field: str,
-                              count: int = 5,
                               user_service: UserService = Depends(),
                               current_user: UserGet = Depends(get_current_user)
                               ):
-    users = await user_service.get_users_by_search_field(search_field, count)
+    users = await user_service.get_users_by_search_field(search_field)
     return users
 
 

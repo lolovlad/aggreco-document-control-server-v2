@@ -111,10 +111,6 @@ class ObjectService:
         if is_add:
             user = await self.__user_repo.get_user_by_uuid(uuid_user)
             obj = await self.__object_repo.get_by_uuid(uuid_object)
-
-            ent = await self.__object_repo.get_registrate_user_by_object(user.id)
-            if len(ent) > 0:
-                return False
             try:
                 await self.__object_repo.add_user_to_object(obj, user)
                 return True
@@ -128,8 +124,8 @@ class ObjectService:
         except Exception:
             raise Exception
 
-    async def get_object_to_user(self, uuid_user: str) -> GetObject | None:
+    async def get_object_to_user(self, uuid_user: str) -> list[GetObject] | None:
         obj = await self.__object_repo.get_object_by_user_uuid(uuid_user)
         if obj is None:
             return obj
-        return GetObject.model_validate(obj, from_attributes=True)
+        return [GetObject.model_validate(i, from_attributes=True) for i in obj]

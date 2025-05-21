@@ -80,12 +80,11 @@ class EquipmentService:
         except Exception:
             raise Exception
 
-    async def get_equipment_by_search_field(self, uuid_object: str, search_filed: str, count: int) -> list[GetEquipment]:
+    async def get_equipment_by_search_field(self, uuid_object: str, search_filed: str) -> list[GetEquipment]:
         data_field = search_filed.replace(" ", "")
         equipment_entity = await self.__equipment_repo.get_equipment_by_search_field(
             uuid_object,
-            data_field,
-            count
+            data_field
         )
         equipment = [GetEquipment.model_validate(entity, from_attributes=True) for entity in equipment_entity]
         return equipment

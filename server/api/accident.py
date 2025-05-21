@@ -51,7 +51,6 @@ async def get_page_accident(
     status.HTTP_201_CREATED: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 })
-@access_control(["admin", "super_admin"])
 async def add_accident(
         request: Request,
         accident: PostAccident,
@@ -88,7 +87,6 @@ async def get_one_accident(uuid: str,
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
     status.HTTP_200_OK: {"model": Message},
 })
-@access_control(["admin", "super_admin"])
 async def update_accident(
         request: Request,
         uuid: str,
@@ -106,7 +104,6 @@ async def update_accident(
     status.HTTP_200_OK: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
 })
-@access_control(["super_admin"])
 async def delete_accident(uuid: str,
                           current_user: UserGet = Depends(get_current_user),
                           service: AccidentService = Depends()):

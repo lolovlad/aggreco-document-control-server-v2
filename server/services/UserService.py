@@ -96,7 +96,7 @@ class UserService:
             return None
         return UserGet.model_validate(user, from_attributes=True)
 
-    async def get_users_by_search_field(self, search_field: str, count: int):
+    async def get_users_by_search_field(self, search_field: str):
         data_field = search_field.split(" ")
         surname, name, patronymic = "", "", ""
         if len(data_field) > 0:
@@ -109,7 +109,6 @@ class UserService:
             surname,
             name,
             patronymic,
-            count
         )
         users = [UserGet.model_validate(entity, from_attributes=True) for entity in users_entity]
         return users

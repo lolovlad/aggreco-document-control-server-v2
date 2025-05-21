@@ -73,13 +73,12 @@ class EquipmentRepository:
         result = await self.__session.execute(response)
         return result.scalars().all()
 
-    async def get_equipment_by_search_field(self, uuid_object: str, name_equipment: str, count: int) -> list[Equipment]:
+    async def get_equipment_by_search_field(self, uuid_object: str, name_equipment: str) -> list[Equipment]:
         response = (select(Equipment)
                     .join(Object).where(Object.uuid == uuid_object)
                     .where(or_(Equipment.name.ilike(f'%{name_equipment}%'),
                                Equipment.code.ilike(f'%{name_equipment}%')))
                     .where(Equipment.is_delite == False)
-                    .limit(count)
                     .order_by(Equipment.id))
         result = await self.__session.execute(response)
         return result.scalars().all()

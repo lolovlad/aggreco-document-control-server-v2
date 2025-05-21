@@ -121,13 +121,13 @@ class ObjectRepository:
         result = await self.__session.execute(response)
         return result.scalars().all()
 
-    async def get_object_by_user_uuid(self, uuid_user: str) -> Object | None:
+    async def get_object_by_user_uuid(self, uuid_user: str) -> list[Object] | None:
         response = (select(Object)
                     .join(ObjectToUser, Object.id == ObjectToUser.id_object)
                     .join(User, User.id == ObjectToUser.id_user)
                     .where(User.uuid == uuid_user))
         result = await self.__session.execute(response)
-        return result.scalars().first()
+        return result.scalars().all()
 
     async def get_object_by_uuid_equipment(self, uuid_user: str, uuid_equipment: str) -> Object | None:
         response = (select(Object)

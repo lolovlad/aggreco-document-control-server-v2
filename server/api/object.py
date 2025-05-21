@@ -160,11 +160,10 @@ async def get_page_equipment(
 async def search_equipment(
         uuid: str,
         search_field: str,
-        count: int = 5,
         service: EquipmentService = Depends(),
         current_user: UserGet = Depends(get_current_user)
 ):
-    equipment = await service.get_equipment_by_search_field(uuid, search_field, count)
+    equipment = await service.get_equipment_by_search_field(uuid, search_field)
     return equipment
 
 
@@ -336,7 +335,7 @@ async def delete_user_to_object(uuid_object: str,
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
     status.HTTP_200_OK: {"model": Message},
-})
+}, response_model=list[GetObject])
 @access_control(["user"])
 async def get_object_to_user(service: ObjectService = Depends(),
                              current_user: UserGet = Depends(get_current_user)):

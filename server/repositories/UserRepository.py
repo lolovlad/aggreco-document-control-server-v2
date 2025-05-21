@@ -57,13 +57,12 @@ class UserRepository:
     async def get_users_by_search_field(self,
                                         surname: str,
                                         name: str,
-                                        patronymic: str,
-                                        count: int) -> list[User]:
+                                        patronymic: str) -> list[User]:
         response = select(User).where(and_(
             User.surname.ilike(f'%{surname}%'),
             User.name.ilike(f'%{name}%'),
             User.patronymic.ilike(f'%{patronymic}%')
-        )).limit(count).order_by(User.id)
+        )).order_by(User.id)
         result = await self.__session.execute(response)
         return result.scalars().all()
 
