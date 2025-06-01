@@ -45,6 +45,10 @@ class EnvService:
         is_del = await self.__env_repo.delete_prof(id_prof)
         return is_del
 
+    async def delete_type_equipment(self, id_type_equipment: int) -> bool:
+        is_del = await self.__env_repo.delete_type_equipment(id_type_equipment)
+        return is_del
+
     async def import_type_equip_file(self, file: UploadFile):
         try:
             type_equipments = []
@@ -108,6 +112,10 @@ class EnvService:
             raise Exception()
         finally:
             await file.close()
+
+    async def add_region(self, name: str, code: str):
+        entity = RegionORM(name=name, code=code)
+        entity = await self.__env_repo.add(entity)
 
     async def get_all_type_brake(self, class_brake: str) -> list[GetTypeBrake] | None:
         entity = await self.__type_brake_repo.get_all_type_brake_by_class(class_brake)

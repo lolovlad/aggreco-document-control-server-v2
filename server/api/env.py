@@ -8,7 +8,7 @@ from ..models.User import GetTypeUser, Profession
 from ..models.Message import Message
 from ..models.User import UserGet
 from ..models.Equipment import TypeEquipment, PostTypeEquipment
-from ..models.Object import StateObject, Region
+from ..models.Object import StateObject, Region, PostRegion
 from ..models.Accident import SignsAccident, GetTypeBrake
 from ..models.Event import StateEvent, TypeEvent
 from ..models.Claim import StateClaimModel
@@ -97,6 +97,23 @@ async def add_type_equipment(type_equipment: PostTypeEquipment,
                         status_code=status.HTTP_201_CREATED)
 
 
+@router.delete("/type_equip/{id_type_equipment}", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+@access_control(["super_admin"])
+async def delete_type_equipment(id_type_equipment: int,
+                                service: EnvService = Depends(),
+                                current_user: UserGet = Depends(get_current_user)):
+    type_equip = await service.delete_type_equipment(id_type_equipment)
+    if type_equip:
+        return JSONResponse(status_code=status.HTTP_200_OK,
+                            content={"message": "Удалено"})
+    else:
+        return JSONResponse(content={"message": "ошибка удаление"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @router.post("/type_equip/import_file", responses={
     status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
     status.HTTP_201_CREATED: {"model": Message},
@@ -157,6 +174,19 @@ async def import_region(file: UploadFile = File(...),
     except Exception:
         return JSONResponse(content={"message": "ошибка добавления"},
                                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@router.post("/region", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+@access_control(["super_admin"])
+async def add_region(region: PostRegion,
+                     service: EnvService = Depends(),
+                     current_user: UserGet = Depends(get_current_user)):
+    await service.add_region(region.name, region.code)
+    return JSONResponse(content={"message": "добавлено"},
+                        status_code=status.HTTP_201_CREATED)
 
 
 @router.get("/signs_accident/get_all", response_model=list[SignsAccident], responses={

@@ -43,7 +43,8 @@ async def get_page_accident(
     count_page = await service.get_count_page(uuid_object)
     response.headers["X-Count-Page"] = str(count_page)
     response.headers["X-Count-Item"] = str(service.count_item)
-    return await service.get_page_accident(uuid_object, page)
+    accident = await service.get_page_accident(uuid_object, page)
+    return accident
 
 
 @router.post("", responses={

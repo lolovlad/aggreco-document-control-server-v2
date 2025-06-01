@@ -28,9 +28,11 @@ class ObjectService:
 
     async def is_user_in_object(self, user: UserGet, uuid_object: str) -> bool:
         obj = await self.__object_repo.get_object_by_user_uuid(user.uuid)
+
+        set_uuid = set([i.uuid for i in obj])
         if obj is None:
             return False
-        return str(obj.uuid) == uuid_object
+        return uuid_object in set_uuid
 
     async def is_user_in_object_by_uuid_equipment(self, user: UserGet, uuid_equipment: str) -> bool:
         obj = await self.__object_repo.get_object_by_uuid_equipment(user.uuid, uuid_equipment)

@@ -9,6 +9,11 @@ class Region(BaseModel):
     code: str
 
 
+class PostRegion(BaseModel):
+    name: str
+    code: str
+
+
 class StateObject(BaseModel):
     id: int
     name: str

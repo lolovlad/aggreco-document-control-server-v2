@@ -3,18 +3,7 @@ from sqlalchemy import select, func, or_
 
 from fastapi import Depends
 
-from ..tables import (TypeUser,
-                      Profession,
-                      TypeEquipment,
-                      StateObject,
-                      Region,
-                      ClassBrake,
-                      SignsAccident,
-                      FileDocument,
-                      User,
-                      TypeEvent,
-                      StateEvent,
-                      StateClaim)
+from ..tables import *
 
 from ..database import get_session
 
@@ -38,6 +27,23 @@ class EnvRepository:
             return False
         else:
             prof = await self.__session.get(Profession, id_prof)
+            try:
+                await self.__session.delete(prof)
+                await self.__session.commit()
+                return True
+            except:
+                await self.__session.rollback()
+                return False
+
+    async def delete_type_equipment(self, id_type_equipment: int) -> bool:
+        response = (select(func.count(Equipment.id))
+                    .where(Equipment.id_type == id_type_equipment))
+        result = await self.__session.execute(response)
+        count = result.scalars().first()
+        if count > 0:
+            return False
+        else:
+            prof = await self.__session.get(TypeEquipment, id_type_equipment)
             try:
                 await self.__session.delete(prof)
                 await self.__session.commit()
@@ -140,3 +146,12 @@ class EnvRepository:
         response = select(StateClaim)
         result = await self.__session.execute(response)
         return result.scalars().all()
+
+    async def add(self, entity):
+        try:
+            self.__session.add(entity)
+            await self.__session.commit()
+            return entity
+        except:
+            await self.__session.rollback()
+            return None
