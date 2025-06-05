@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, distinct
 
 from fastapi import Depends
 
@@ -16,7 +16,7 @@ class ClaimRepository:
     async def count_row(self, id_user: int | None,
                         uuid_object: str,
                         id_state_claim: int) -> int:
-        response = (select(func.count(Claim.id))
+        response = (select(func.count(distinct(Claim.id)))
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(Object, Accident.id_object == Object.id)
                     .join(ObjectToUser, ObjectToUser.id_object == Object.id))
@@ -35,7 +35,7 @@ class ClaimRepository:
                               id_state_claim: int,
                               start: int,
                               count: int) -> list[Claim]:
-        response = (select(Claim)
+        response = (select(Claim).distinct()
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(Object, Accident.id_object == Object.id)
                     .join(ObjectToUser, ObjectToUser.id_object == Object.id)
@@ -45,7 +45,6 @@ class ClaimRepository:
         if id_state_claim != 0:
             response = response.where(Claim.id_state_claim == id_state_claim)
         response = response.offset(start).fetch(count).order_by(Claim.id)
-
         result = await self.__session.execute(response)
         return result.scalars().unique().all()
 
@@ -54,11 +53,10 @@ class ClaimRepository:
                                     id_state_claim: int,
                                     start: int,
                                     count: int) -> list[Claim]:
-        response = (select(Claim)
+        response = (select(Claim).distinct()
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(StateClaim, Claim.id_state_claim == StateClaim.id)
-                    .join(Object, Accident.id_object == Object.id)
-                    .join(ObjectToUser, ObjectToUser.id_object == Object.id))
+                    .join(Object, Accident.id_object == Object.id))
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)
         if id_state_claim != 0:
@@ -66,7 +64,6 @@ class ClaimRepository:
         else:
             response = response.where(or_(StateClaim.name == "accepted", StateClaim.name == "under_consideration"))
         response = response.offset(start).fetch(count).order_by(Claim.id)
-
         result = await self.__session.execute(response)
         return result.scalars().unique().all()
 
