@@ -20,7 +20,7 @@ class ClaimRepository:
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(Object, Accident.id_object == Object.id)
                     .join(ObjectToUser, ObjectToUser.id_object == Object.id))
-        if id_user is None:
+        if id_user is not None:
             response = response.where(ObjectToUser.id_user == id_user)
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)
