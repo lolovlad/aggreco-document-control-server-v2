@@ -110,14 +110,18 @@ class ObjectService:
 
     async def registrate_user(self, uuid_object: str, uuid_user: str) -> bool:
         is_add = await self.__object_repo.unique_object_to_user(uuid_object, uuid_user)
+
         if is_add:
             user = await self.__user_repo.get_user_by_uuid(uuid_user)
             obj = await self.__object_repo.get_by_uuid(uuid_object)
-            try:
-                await self.__object_repo.add_user_to_object(obj, user)
-                return True
-            except Exception:
-                raise Exception
+            if user.type.name == "user":
+                try:
+                    await self.__object_repo.add_user_to_object(obj, user)
+                    return True
+                except Exception:
+                    raise Exception
+            else:
+                return False
         return False
 
     async def delete_user_in_object(self, uuid_object: str, uuid_user: str):
