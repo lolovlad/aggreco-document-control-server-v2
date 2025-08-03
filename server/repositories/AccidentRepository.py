@@ -49,7 +49,7 @@ class AccidentRepository:
             raise Exception
 
     async def get_state_accident_by_name(self, name: str) -> StateAccident:
-        response = select(StateAccident).where(Accident.is_delite == False).where(StateAccident.name == name)
+        response = select(StateAccident).where(StateAccident.name == name)
         result = await self.__session.execute(response)
         return result.scalars().first()
 
