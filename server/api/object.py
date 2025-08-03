@@ -213,17 +213,13 @@ async def add_equipment(
         service_object: ObjectService = Depends(),
         current_user: UserGet = Depends(get_current_user)):
     is_edit = await service_object.is_user_in_object(current_user, uuid)
-
-    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_admin"):
-        try:
-            await service.create_equip(uuid, equipment_target)
-            return JSONResponse(content={"message": "добавлено"},
-                                status_code=status.HTTP_201_CREATED)
-        except Exception:
-            return JSONResponse(content={"message": "ошибка добавления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        await service.create_equip(uuid, equipment_target)
+        return JSONResponse(content={"message": "добавлено"},
+                            status_code=status.HTTP_201_CREATED)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка добавления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.delete("/equipment/{uuid_equipment}", responses={
@@ -237,17 +233,13 @@ async def delete_equipment(
         service_object: ObjectService = Depends(),
         current_user: UserGet = Depends(get_current_user)):
     is_edit = await service_object.is_user_in_object_by_uuid_equipment(current_user, uuid_equipment)
-
-    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_admin"):
-        try:
-            await service.delete_equip(uuid_equipment)
-            return JSONResponse(content={"message": "Удалено"},
-                                status_code=status.HTTP_200_OK)
-        except Exception:
-            return JSONResponse(content={"message": "ошибка удаления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        await service.delete_equip(uuid_equipment)
+        return JSONResponse(content={"message": "Удалено"},
+                            status_code=status.HTTP_200_OK)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка удаления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.put("/equipment/{uuid_equipment}", responses={
@@ -262,16 +254,13 @@ async def update_equipment(uuid_equipment: str,
                            current_user: UserGet = Depends(get_current_user)):
     is_edit = await service_object.is_user_in_object_by_uuid_equipment(current_user, uuid_equipment)
 
-    if (is_edit and current_user.type.name == "user") or current_user.type.name in ("admin", "super_admin"):
-        try:
-            await service.update_equip(uuid_equipment, target_equipment)
-            return JSONResponse(content={"message": "Обновленно"},
-                                status_code=status.HTTP_200_OK)
-        except Exception:
-            return JSONResponse(content={"message": "ошибка обновления"},
-                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    else:
-        return message_error[status.HTTP_406_NOT_ACCEPTABLE]
+    try:
+        await service.update_equip(uuid_equipment, target_equipment)
+        return JSONResponse(content={"message": "Обновленно"},
+                            status_code=status.HTTP_200_OK)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления"},
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.get("/{uuid}/users", response_model=list[UserGet],
