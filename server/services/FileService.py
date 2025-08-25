@@ -112,7 +112,7 @@ class FileService:
 
         dump["accident"]["time_line"] = [
             {
-                "time": i["time"].strftime("%d.%m.%Y %H:%M"),
+                "time": i["time"].strftime("%d.%m.%Y %H:%M:%S"),
                 "val": i["description"]
             } for i in sorted(dump["accident"]["time_line"], key=lambda i: i["time"])
         ]
