@@ -13,9 +13,13 @@ class ClaimRepository:
     def __init__(self, session: AsyncSession = Depends(get_session)):
         self.__session: AsyncSession = session
 
-    async def count_row(self, id_user: int | None,
+    async def count_row(self,
+                        id_user: int | None,
                         uuid_object: str,
-                        id_state_claim: int) -> int:
+                        id_state_claim: int,
+                        date_from: datetime | None = None,
+                        date_to: datetime | None = None
+                        ) -> int:
         response = (select(func.count(distinct(Claim.id)))
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(Object, Accident.id_object == Object.id)
@@ -26,6 +30,12 @@ class ClaimRepository:
             response = response.where(Object.uuid == uuid_object)
         if id_state_claim != 0:
             response = response.where(Claim.id_state_claim == id_state_claim)
+
+        if date_from:
+            response = response.where(Claim.datetime >= date_from)
+        if date_to:
+            response = response.where(Claim.datetime <= date_to)
+
         result = await self.__session.execute(response)
         return result.scalars().first()
 
@@ -34,17 +44,27 @@ class ClaimRepository:
                               uuid_object: str,
                               id_state_claim: int,
                               start: int,
-                              count: int) -> list[Claim]:
+                              count: int,
+                              date_from: datetime | None = None,
+                              date_to: datetime | None = None
+                              ) -> list[Claim]:
         response = (select(Claim).distinct()
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(Object, Accident.id_object == Object.id)
                     .join(ObjectToUser, ObjectToUser.id_object == Object.id)
                     .where(ObjectToUser.id_user == id_user))
+
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)
         if id_state_claim != 0:
             response = response.where(Claim.id_state_claim == id_state_claim)
-        response = response.offset(start).fetch(count).order_by(Claim.id)
+
+        if date_from:
+            response = response.where(Claim.datetime >= date_from)
+        if date_to:
+            response = response.where(Claim.datetime <= date_to)
+
+        response = response.order_by(Claim.datetime.desc()).offset(start).fetch(count)
         result = await self.__session.execute(response)
         return result.scalars().unique().all()
 
@@ -52,7 +72,10 @@ class ClaimRepository:
                                     uuid_object: str,
                                     id_state_claim: int,
                                     start: int,
-                                    count: int) -> list[Claim]:
+                                    count: int,
+                                    date_from: datetime | None = None,
+                                    date_to: datetime | None = None
+                                    ) -> list[Claim]:
         response = (select(Claim).distinct()
                     .join(Accident, Claim.id_accident == Accident.id)
                     .join(StateClaim, Claim.id_state_claim == StateClaim.id)
@@ -63,7 +86,13 @@ class ClaimRepository:
             response = response.where(Claim.id_state_claim == id_state_claim)
         else:
             response = response.where(or_(StateClaim.name == "accepted", StateClaim.name == "under_consideration"))
-        response = response.offset(start).fetch(count).order_by(Claim.id)
+
+        if date_from:
+            response = response.where(Claim.datetime >= date_from)
+        if date_to:
+            response = response.where(Claim.datetime <= date_to)
+
+        response = response.order_by(Claim.datetime.desc()).offset(start).fetch(count)
         result = await self.__session.execute(response)
         return result.scalars().unique().all()
 

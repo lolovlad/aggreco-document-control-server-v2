@@ -23,8 +23,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 base = declarative_base()
 
+
 class DeleteMixin(object):
     is_delite = Column(Boolean, default=False, nullable=True, server_default="False")
+
 
 class TypeUser(base):
     __tablename__ = "type_user"
@@ -57,6 +59,7 @@ class User(base):
     profession = relationship("Profession", lazy="joined")
 
     painting = Column(String, nullable=True, default="")
+    email_send_info = Column(MutableDict.as_mutable(JSONB), nullable=True)
 
     is_deleted = Column(Boolean, nullable=True, default=False)
 

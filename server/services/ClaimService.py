@@ -33,13 +33,20 @@ class ClaimServices:
     async def get_count_page(self,
                              uuid_user: str | None,
                              uuid_object: str,
-                             id_state_claim: int) -> int:
+                             id_state_claim: int,
+                             date_from: datetime | None = None,
+                             date_to: datetime | None = None
+                             ) -> int:
         id_user = None
         if uuid_user:
             user = await self.__user_repo.get_user_by_uuid(uuid_user)
             id_user = user.id
 
-        count_row = await self.__claim_repo.count_row(id_user, uuid_object, id_state_claim)
+        count_row = await self.__claim_repo.count_row(id_user,
+                                                      uuid_object,
+                                                      id_state_claim,
+                                                      date_from,
+                                                      date_to)
         sub_page = 0
         if count_row % self.__count_item > 0:
             sub_page += 1
@@ -49,14 +56,28 @@ class ClaimServices:
                              num_page: int,
                              user: UserGet,
                              uuid_object: str,
-                             id_state_claim: int) -> list[GetClaim]:
+                             id_state_claim: int,
+                             date_from: datetime | None = None,
+                             date_to: datetime | None = None
+                             ) -> list[GetClaim]:
         start = (num_page - 1) * self.__count_item
 
         if user.type.name == "user":
             user = await self.__user_repo.get_user_by_uuid(user.uuid)
-            entity = await self.__claim_repo.get_limit_claim(user.id, uuid_object, id_state_claim, start, self.__count_item)
+            entity = await self.__claim_repo.get_limit_claim(user.id,
+                                                             uuid_object,
+                                                             id_state_claim,
+                                                             start,
+                                                             self.__count_item,
+                                                             date_from,
+                                                             date_to)
         else:
-            entity = await self.__claim_repo.get_limit_claim_admin(uuid_object, id_state_claim, start, self.__count_item)
+            entity = await self.__claim_repo.get_limit_claim_admin(uuid_object,
+                                                                   id_state_claim,
+                                                                   start,
+                                                                   self.__count_item,
+                                                                   date_from,
+                                                                   date_to)
         claim = [GetClaim.model_validate(entity, from_attributes=True) for entity in entity]
         return claim
 
@@ -171,6 +192,7 @@ class ClaimServices:
 
         await self.__claim_repo.update(claim)
         await self.__accident_repo.update(accident)
+        return claim
 
     async def update_claim(self, uuid: str, claim_model: UpdateClaim):
         claim = await self.__claim_repo.get_by_uuid(uuid)

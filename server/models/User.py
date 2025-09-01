@@ -30,6 +30,7 @@ class UserGet(UserBase):
     uuid: UUID4
     type: GetTypeUser
     profession: Profession | None
+    email_send_info: dict | None
 
     @field_serializer('uuid')
     def serialize_uuid(self, uuid: UUID4, _info):
@@ -42,6 +43,7 @@ class UserPost(UserBase):
 
 class UserUpdate(UserBase):
     password: str | None = None
+    email_send_info: dict | None = None
 
 
 class UserDocument(BaseModel):

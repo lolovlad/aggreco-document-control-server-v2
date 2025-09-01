@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, status, Request, Response, UploadFile, File
+from fastapi import (APIRouter, Depends,
+                     status, Request,
+                     Response, UploadFile,
+                     File, BackgroundTasks, Query)
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from ..services import ClaimServices, get_current_user, AccidentService
+from ..services import ClaimServices, get_current_user, AccidentService, EmailService
 from ..models.Claim import (
     GetClaim,
     PostClaim,
@@ -12,6 +15,8 @@ from ..models.Message import Message
 from ..models.User import UserGet
 from ..repositories import FileBucketRepository
 from ..functions import access_control
+
+from datetime import date
 
 
 router = APIRouter(prefix="/claim", tags=["claim"])
@@ -34,15 +39,30 @@ async def get_page_claim(
         per_item_page: int = 20,
         id_state_claim: int = 0,
         uuid_object: str = "all",
+        date_from: date | None = Query(None, description="Фильтр: начиная с даты"),
+        date_to: date | None = Query(None, description="Фильтр: до даты"),
         current_user: UserGet = Depends(get_current_user),
         service: ClaimServices = Depends()):
 
     service.count_item = per_item_page
     if current_user.type.name == "user":
-        count_page = await service.get_count_page(current_user.uuid, uuid_object, id_state_claim)
+        count_page = await service.get_count_page(current_user.uuid,
+                                                  uuid_object,
+                                                  id_state_claim,
+                                                  date_from,
+                                                  date_to)
     else:
-        count_page = await service.get_count_page(None, uuid_object, id_state_claim)
-    claims = await service.get_page_claim(page, current_user, uuid_object, id_state_claim)
+        count_page = await service.get_count_page(None,
+                                                  uuid_object,
+                                                  id_state_claim,
+                                                  date_from,
+                                                  date_to)
+    claims = await service.get_page_claim(page,
+                                          current_user,
+                                          uuid_object,
+                                          id_state_claim,
+                                          date_from,
+                                          date_to)
 
     response.headers["X-Count-Page"] = str(count_page)
     response.headers["X-Count-Item"] = str(service.count_item)
@@ -160,11 +180,20 @@ async def delete_claim(uuid: str,
 })
 async def update_claim_state(uuid_claim: str,
                              state_claim: str,
+                             background_tasks: BackgroundTasks,
                              current_user: UserGet = Depends(get_current_user),
-                             service: ClaimServices = Depends()
+                             service: ClaimServices = Depends(),
+                             notify: EmailService = Depends()
                              ):
     try:
-        await service.update_state_claim(uuid_claim, state_claim, current_user)
+        claim = await service.update_state_claim(uuid_claim, state_claim, current_user)
+        await notify.send_by_context(
+            background_tasks,
+            "claim_update_state",
+            "Изминения состояния заявки",
+            "Изменилось состояние заявки, проверте личный кабинет",
+            [claim.user]
+        )
     except Exception:
         return JSONResponse(content={"message": "ошибка обновления состояния"},
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

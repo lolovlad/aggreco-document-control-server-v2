@@ -83,3 +83,8 @@ class UserRepository:
     async def get_user_by_access_email(self, email: str) -> User:
         response = select(User).where(User.email == email).where(User.is_deleted == False)
         result = await self.__session.execute(response)
+
+    async def get_users_by_context_email(self, context: str) -> list[User]:
+        stmt = select(User).where(User.email_send_info[context].astext == 'true')
+        result = await self.__session.execute(stmt)
+        return result.scalars().all()
