@@ -22,7 +22,9 @@ class EmailService:
         background_tasks: BackgroundTasks,
         context: str,
         subject: str,
-        body: str,
+        template_name: str,
+        is_html: bool = True,
+        email_context: dict | None = None,
         options_user: Optional[list[User]] = None,
     ):
         users = await self.__user_repo.get_users_by_context_email(context)
@@ -33,6 +35,8 @@ class EmailService:
                 self.notifier,
                 to_email=user.email,
                 subject=subject,
-                body=body
+                template_name=template_name,
+                context=email_context,
+                is_html=is_html
             )
         return True

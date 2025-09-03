@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container {
+            padding: 20px;
+            background: #f7f7f7;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .title { font-size: 18px; font-weight: bold; color: #36467A; }
+        .footer { font-size: 12px; color: #777; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <p>Изменилось состояние заявки</p>
+        <table border="1" cellpadding="5">
+            <thead>
+                <tr>
+                    <th>№</th>
+                    <th>Объект</th>
+                    <th>Оборудование</th>
+                    <th>Время</th>
+                    <th>Автор</th>
+                    <th>Состояние заявки</th>
+                </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>{{ claim.id }}</td>
+                <td>{{ claim.accident.object.name }}</td>
+                <td>
+                    {%- set eq_names = claim.accident.damaged_equipment | map(attribute='name') | list -%}
+                    {%- set eq_string = eq_names | join(', ') -%}
+                    {{ eq_string[:50] ~ ('...' if eq_string|length > 50 else '') }}
+                </td>
+                <td>{{ claim.datetime.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                <td>{{ claim.user.surname }} {{ claim.user.name[0] }}. {{ claim.user.patronymic[0] }}.</td>
+                <td>{{ claim.state_claim.description or claim.state_claim.name }}</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

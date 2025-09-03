@@ -185,18 +185,20 @@ async def update_claim_state(uuid_claim: str,
                              service: ClaimServices = Depends(),
                              notify: EmailService = Depends()
                              ):
-    try:
-        claim = await service.update_state_claim(uuid_claim, state_claim, current_user)
-        await notify.send_by_context(
-            background_tasks,
-            "claim_update_state",
-            "Изминения состояния заявки",
-            "Изменилось состояние заявки, проверте личный кабинет",
-            [claim.user]
-        )
-    except Exception:
-        return JSONResponse(content={"message": "ошибка обновления состояния"},
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    #try:
+    claim = await service.update_state_claim(uuid_claim, state_claim, current_user)
+    await notify.send_by_context(
+        background_tasks,
+        "claim_update_state",
+        "Изминения состояния заявки",
+        "claim_update_state.html",
+        True,
+        email_context={"claim": claim},
+        options_user=[claim.user]
+    )
+    #except Exception:
+    #    return JSONResponse(content={"message": "ошибка обновления состояния"},
+    #                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @router.put("/{uuid_claim}", responses={
