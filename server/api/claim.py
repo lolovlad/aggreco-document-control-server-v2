@@ -190,7 +190,7 @@ async def update_claim_state(uuid_claim: str,
     await notify.send_by_context(
         background_tasks,
         "claim_update_state",
-        "Изминения состояния заявки",
+        "Изменения состояния заявки",
         "claim_update_state.html",
         True,
         email_context={"claim": claim},
