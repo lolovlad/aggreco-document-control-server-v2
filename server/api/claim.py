@@ -194,7 +194,7 @@ async def update_claim_state(uuid_claim: str,
         "claim_update_state.html",
         True,
         email_context={"claim": claim},
-        options_user=[claim.user]
+        options_user=[]
     )
     #except Exception:
     #    return JSONResponse(content={"message": "ошибка обновления состояния"},
