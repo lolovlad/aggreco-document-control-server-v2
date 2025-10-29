@@ -315,3 +315,33 @@ class FileDocument(base):
 
     name = Column(String, nullable=True)
     size = Column(Float, nullable=True)
+
+
+class TechnicalProposals(base):
+    __tablename__ = "technical_proposals"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
+
+    name = Column(String, nullable=True, default=None)
+
+    id_state_claim = Column(ForeignKey("state_claim.id"))
+    state_claim = relationship(StateClaim, lazy="joined")
+
+    id_object = Column(ForeignKey("object.id"))
+    object = relationship(Object, lazy="joined")
+
+    id_user = Column(ForeignKey("user.id"))
+    user = relationship(User, lazy="joined", foreign_keys=[id_user])
+
+    id_expert = Column(ForeignKey("user.id"), nullable=True, default=None)
+    expert = relationship(User, lazy="joined", foreign_keys=[id_expert])
+
+    offer = Column(Text, nullable=True)
+    additional_material = Column(String, nullable=True, default="")
+
+    comment = Column(Text, nullable=True, default="Нет")
+
+    last_datetime_edit = Column(DateTime(timezone=True),
+                                nullable=False,
+                                onupdate=func.now(),
+                                server_default=func.now())

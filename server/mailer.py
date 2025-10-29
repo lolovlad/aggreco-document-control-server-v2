@@ -33,9 +33,12 @@ def send_email(to_email: str, subject: str, body: str, is_html: bool = False):
     mime_type = "html" if is_html else "plain"
     msg.attach(MIMEText(body, mime_type, "utf-8"))
 
-    with smtplib.SMTP_SSL(mail_settings.smtp_host, mail_settings.smtp_port) as server:
-        server.login(mail_settings.smtp_user, mail_settings.smtp_password)
-        server.send_message(msg)
+    try:
+        with smtplib.SMTP_SSL(mail_settings.smtp_host, mail_settings.smtp_port) as server:
+            server.login(mail_settings.smtp_user, mail_settings.smtp_password)
+            server.send_message(msg)
+    except Exception:
+        pass
 
 
 class EmailNotifier:
