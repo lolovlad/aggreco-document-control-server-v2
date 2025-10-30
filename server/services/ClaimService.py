@@ -107,7 +107,7 @@ class ClaimServices:
         return GetClaim.model_validate(entity, from_attributes=True)
 
     async def upload_file(self, type_file: str, uuid: str, file: UploadFile):
-        ext = file.filename.split(".")[1]
+        ext = file.filename.split(".")[-1]
         dir_name = f"{uuid}"
 
         file_key = f"{dir_name}/{type_file}_file.{ext}"
