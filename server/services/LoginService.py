@@ -24,7 +24,7 @@ class LoginServices:
     exception_unauthorized = HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                            detail="token",
                                            headers={
-                                               "AggrecoDocument": 'Bearer'
+                                               "AgcDocument": 'Bearer'
                                            })
 
     def __init__(self,
@@ -125,7 +125,7 @@ class LoginServices:
         token_yandex = await self.__document_service.get_token_user_from_yandex(code)
         if token:
             user_yandex = await self.__document_service.get_user_from_yandex(token_yandex)
-            if self.__is_corporate_email(user_yandex.default_email, "aggreko-eurasia.ru"):
+            if self.__is_corporate_email(user_yandex.default_email, "agk-russia.ru"):
                 user = self.validate_token(token)
                 user = await self.__repo.get_user_by_email(user.email)
                 if user:
