@@ -56,6 +56,7 @@ class StatisticService:
             list_type = await self.__type_brake_repo.get_all_type_brake_by_class_id(int(param))
         table = {}
 
+
         for tp in list_type:
             table[tp.id] = {
                 "name": tp.name,
