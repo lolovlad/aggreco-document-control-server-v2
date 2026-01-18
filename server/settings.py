@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings
 
 import os
 
+
 class Settings(BaseSettings):
 
     postgres_host: str
@@ -33,6 +34,10 @@ class Settings(BaseSettings):
 
     minio_access_key: str
     minio_secret_key: str
+
+    yandex_cloud_api_key: str | None
+    yandex_cloud_folder_id: str | None
+    yandex_cloud_llm_model: str
 
     root_path: str = os.path.dirname(os.path.abspath(__file__))
 

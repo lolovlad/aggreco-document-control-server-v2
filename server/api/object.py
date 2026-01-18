@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Response, UploadFile, File
+from fastapi import APIRouter, Depends, status, Response, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 
 from ..models.Object import *
@@ -334,3 +334,94 @@ async def get_object_to_user(service: ObjectService = Depends(),
     else:
         return JSONResponse(content={"message": " не существует"},
                             status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.get("/{uuid}/settings", response_model=GetObjectSettings,
+            responses={
+                status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+                status.HTTP_400_BAD_REQUEST: {"model": Message},
+                status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+            })
+@access_control(["super_admin"])
+async def get_object_settings(uuid: str,
+                              service: ObjectService = Depends(),
+                              current_user: UserGet = Depends(get_current_user)):
+    try:
+        settings = await service.get_settings(uuid)
+        # Всегда возвращаем 200 OK, даже если settings пустые
+        # Фронтенд может проверить наличие данных по наличию не-None значений
+        return settings
+    except ValueError as e:
+        return JSONResponse(content={"message": str(e)},
+                          status_code=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка получения settings"},
+                          status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@router.post("/{uuid}/settings", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_201_CREATED: {"model": Message},
+    status.HTTP_400_BAD_REQUEST: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+@access_control(["super_admin"])
+async def create_object_settings(uuid: str,
+                                 db_host: str = Form(...),
+                                 db_port: int = Form(...),
+                                 db_name: str = Form(...),
+                                 db_user: str = Form(...),
+                                 db_password: str = Form(...),
+                                 csv_file: UploadFile = File(...),
+                                 service: ObjectService = Depends(),
+                                 current_user: UserGet = Depends(get_current_user)):
+    try:
+        # Проверка типа файла (более гибкая проверка)
+        allowed_content_types = ["text/csv", "application/vnd.ms-excel", "text/plain", "application/csv"]
+        if csv_file.content_type and csv_file.content_type not in allowed_content_types:
+            # Проверяем расширение файла, если MIME тип не определен
+            if csv_file.filename and not csv_file.filename.lower().endswith('.csv'):
+                return JSONResponse(content={"message": "Файл должен быть в формате CSV"},
+                                  status_code=status.HTTP_400_BAD_REQUEST)
+        
+        # Создаем модель для валидации
+        settings_post = ObjectSettingsPost(
+            db_host=db_host,
+            db_port=db_port,
+            db_name=db_name,
+            db_user=db_user,
+            db_password=db_password
+        )
+        
+        await service.create_settings(uuid, settings_post, csv_file)
+        return JSONResponse(content={"message": "Settings добавлены"},
+                          status_code=status.HTTP_201_CREATED)
+    except ValueError as e:
+        return JSONResponse(content={"message": str(e)},
+                          status_code=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка добавления settings"},
+                          status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@router.put("/{uuid}/settings", responses={
+    status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+    status.HTTP_200_OK: {"model": Message},
+    status.HTTP_400_BAD_REQUEST: {"model": Message},
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message}
+})
+@access_control(["super_admin"])
+async def update_object_settings(uuid: str,
+                                settings_update: ObjectSettingsUpdate,
+                                service: ObjectService = Depends(),
+                                current_user: UserGet = Depends(get_current_user)):
+    try:
+        await service.update_settings(uuid, settings_update)
+        return JSONResponse(content={"message": "Settings обновлены"},
+                          status_code=status.HTTP_200_OK)
+    except ValueError as e:
+        return JSONResponse(content={"message": str(e)},
+                          status_code=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        return JSONResponse(content={"message": "ошибка обновления settings"},
+                          status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

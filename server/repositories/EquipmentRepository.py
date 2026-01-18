@@ -91,3 +91,44 @@ class EquipmentRepository:
                     .where(Object.uuid == uuid_object))
         result = await self.__session.execute(response)
         return result.scalars().all()
+
+    async def find_equipment_by_name_parts(self, object_id: int, name_parts: list[str]) -> Equipment | None:
+        """
+        Ищет equipment по частям имени (для вложенных имен типа "СУЭС.Секция_1")
+        Использует оптимизированный запрос с поиском по всем частям имени
+        """
+        if not name_parts:
+            return None
+        
+        # Создаем условия для поиска: equipment.name должен содержать все части
+        conditions = []
+        for part in name_parts:
+            if part.strip():  # Пропускаем пустые части
+                conditions.append(Equipment.name.ilike(f'%{part.strip()}%'))
+        
+        if not conditions:
+            return None
+        
+        # Используем AND для всех условий - имя должно содержать все части
+        from sqlalchemy import and_
+        response = (select(Equipment)
+                    .where(Equipment.id_object == object_id)
+                    .where(Equipment.is_delite == False)
+                    .where(and_(*conditions))
+                    .order_by(Equipment.id)
+                    .limit(1))
+        result = await self.__session.execute(response)
+        return result.scalars().first()
+
+    async def get_equipment_by_ids(self, equipment_ids: list[int]) -> list[Equipment]:
+        """
+        Оптимизированный SQL запрос для получения нескольких equipment по числовым id
+        Использует IN для эффективного получения всех записей одним запросом
+        """
+        if not equipment_ids:
+            return []
+        response = (select(Equipment)
+                    .where(Equipment.id.in_(equipment_ids))
+                    .where(Equipment.is_delite == False))
+        result = await self.__session.execute(response)
+        return result.scalars().all()

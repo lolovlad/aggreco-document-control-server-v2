@@ -137,6 +137,7 @@ class Object(base):
     staff = relationship(User, secondary="object_to_user")
 
     is_deleted = Column(Boolean, nullable=True, default=False)
+    settings = Column(MutableDict.as_mutable(JSONB), nullable=True, default={}, server_default="{}")
 
 
 class Equipment(base):
@@ -345,3 +346,42 @@ class TechnicalProposals(base):
                                 nullable=False,
                                 onupdate=func.now(),
                                 server_default=func.now())
+
+
+class LogMessageError(base):
+    __tablename__ = "log_messages_error"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
+
+    id_object = Column(ForeignKey("object.id"))
+    object = relationship(Object, lazy="joined")
+
+    id_equipment = Column(ForeignKey("equipment.id"), nullable=True)
+
+    create_at = Column(DateTime(timezone=False), nullable=False)
+    
+    message = Column(Text, nullable=False)
+
+    class_log_text = Column(String, nullable=False)
+    class_log_int = Column(Integer, nullable=False)
+
+    is_processed = Column(Boolean, default=False)
+
+    entity_equipment = Column(String, nullable=True)
+    number_equipment = Column(Integer, nullable=True)
+
+
+class Summarize(base):
+    __tablename__ = "summatize"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
+
+    id_object = Column(ForeignKey("object.id"))
+    id_equipment = Column(ForeignKey("equipment.id"))
+    text = Column(Text, nullable=False)
+
+    datetime_start = Column(DateTime(timezone=False), nullable=False)
+    datetime_end = Column(DateTime(timezone=False), nullable=True)
+
+    metadata_equipment = Column(MutableDict.as_mutable(JSONB), nullable=False)
+

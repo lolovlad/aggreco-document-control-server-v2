@@ -9,6 +9,7 @@ from .claim import router as claim_router
 from .file import router as file_router
 from .env import router as env_router
 from .proposals import router as proposals_router
+from .log_analysis import router as log_analysis_router
 
 
 router = APIRouter(prefix="/v1")
@@ -22,6 +23,7 @@ router.include_router(claim_router)
 router.include_router(file_router)
 router.include_router(env_router)
 router.include_router(proposals_router)
+router.include_router(log_analysis_router)
 
 
 
