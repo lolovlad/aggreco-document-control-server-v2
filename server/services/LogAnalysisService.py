@@ -42,7 +42,7 @@ class LogAnalysisService:
                 model=settings.yandex_cloud_llm_model,
                 openai_api_key=settings.yandex_cloud_api_key,
                 openai_api_base="https://llm.api.cloud.yandex.net/v1",
-                temperature=0.3,
+                temperature=0.1,
             )
     
     async def analyze_logs_for_object(self, uuid_object: str) -> Dict[str, Any]:
@@ -244,6 +244,123 @@ class LogAnalysisService:
             new_summarize = Summarize(
                 id_object=id_object,
                 id_equipment=id_equipment,
+                text=analysis_result["text"],
+                metadata_equipment=analysis_result["metadata"],
+                datetime_start=month_start,
+                datetime_end=now
+            )
+            await self.summarize_repository.add(new_summarize)
+            print(f"  [Шаг 5/5] Summarize создан")
+        
+        # Помечаем логи как обработанные
+        print(f"  [Шаг 5/5] Пометка логов как обработанных ({len(log_ids)} записей)...")
+        await self.log_repository.mark_logs_as_processed(log_ids)
+        print(f"  [Шаг 5/5] Логи помечены как обработанные")
+        
+        return analysis_result
+    
+    async def _analyze_logs_for_equipment_group(
+        self,
+        id_object: int,
+        equipment_ids: list[int],
+        common_name: str,
+        equipment_names: list[str]
+    ) -> Dict[str, Any]:
+        """
+        Анализирует логи для группы оборудования
+        
+        Args:
+            id_object: ID объекта
+            equipment_ids: Список ID оборудования в группе
+            common_name: Общее название группы
+            equipment_names: Список названий оборудования в группе
+            
+        Returns:
+            Результат анализа с полями text и metadata
+        """
+        # Получаем необработанные логи для группы оборудования
+        print(f"  [Шаг 1/5] Получение необработанных логов для группы оборудования...")
+        logs = await self.log_repository.get_unprocessed_logs_by_object_and_equipment_ids(
+            id_object,
+            equipment_ids
+        )
+        
+        if not logs:
+            print(f"  [Шаг 1/5] Нет необработанных логов для группы")
+            return {
+                "text": "Нет необработанных логов для анализа",
+                "metadata": {}
+            }
+        
+        print(f"  [Шаг 1/5] Получено логов: {len(logs)}")
+        
+        # Проверяем и получаем Summarize для текущего месяца
+        # Используем первое оборудование из группы для Summarize
+        primary_equipment_id = equipment_ids[0]
+        print(f"  [Шаг 2/5] Проверка Summarize для текущего месяца (по оборудованию ID: {primary_equipment_id})...")
+        current_month_summarize = await self.summarize_repository.get_by_object_and_equipment_and_month(
+            id_object,
+            primary_equipment_id
+        )
+        
+        summarize_text = None
+        if current_month_summarize:
+            print(f"  [Шаг 2/5] Найден Summarize для текущего месяца, будет использован для контекста")
+            summarize_text = current_month_summarize.text
+        else:
+            print(f"  [Шаг 2/5] Summarize для текущего месяца не найден, будет создан новый")
+        
+        # Подготавливаем данные логов для LLM
+        print(f"  [Шаг 3/5] Подготовка данных логов для LLM...")
+        logs_data = []
+        log_ids = []
+        for log in logs:
+            logs_data.append({
+                "time": log.create_at.isoformat() if log.create_at else None,
+                "message": log.message,
+                "class_log_text": log.class_log_text,
+                "class_log_int": log.class_log_int,
+                "entity_equipment": log.entity_equipment,
+                "number_equipment": log.number_equipment,
+                "equipment_id": log.id_equipment,
+            })
+            log_ids.append(log.id)
+        
+        print(f"  [Шаг 3/5] Данные подготовлены: {len(logs_data)} записей")
+        
+        # Вызываем LLM для анализа
+        print(f"  [Шаг 4/5] Отправка запроса в LLM для анализа...")
+        if not self.llm:
+            print(f"  [Шаг 4/5] ОШИБКА: LLM не настроен")
+            raise ValueError("LLM не настроен. Проверьте YANDEX_CLOUD_API_KEY в настройках")
+        
+        analysis_result = await self._analyze_with_llm_for_group(
+            logs_data, 
+            summarize_text, 
+            common_name,
+            equipment_names
+        )
+        print(f"  [Шаг 4/5] LLM анализ завершен успешно")
+        
+        # Сохраняем Summarize для текущего месяца
+        print(f"  [Шаг 5/5] Сохранение результатов анализа...")
+        now = datetime.now()
+        month_start = datetime(now.year, now.month, 1)
+        
+        if current_month_summarize:
+            # Обновляем существующий Summarize текущего месяца
+            print(f"  [Шаг 5/5] Обновление существующего Summarize для текущего месяца")
+            current_month_summarize.text = analysis_result["text"]
+            current_month_summarize.metadata_equipment = analysis_result["metadata"]
+            current_month_summarize.datetime_end = now
+            await self.summarize_repository.update(current_month_summarize)
+            print(f"  [Шаг 5/5] Summarize обновлен")
+        else:
+            # Создаем новый Summarize для текущего месяца
+            print(f"  [Шаг 5/5] Создание нового Summarize для текущего месяца")
+            new_summarize = Summarize(
+                id_object=id_object,
+                id_equipment=primary_equipment_id,
                 text=analysis_result["text"],
                 metadata_equipment=analysis_result["metadata"],
                 datetime_start=month_start,
