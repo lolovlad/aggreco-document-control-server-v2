@@ -6,7 +6,9 @@ import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
-from langchain_community.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
+
+
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -37,12 +39,19 @@ class LogAnalysisService:
         # Инициализация LLM через LangChain
         self.llm = None
         if settings.yandex_cloud_api_key:
+            if ChatOpenAI is None:
+                raise ValueError("ChatOpenAI не найден. Установите langchain-openai: pip install langchain-openai")
             # Yandex Cloud поддерживает OpenAI-совместимый API
+            # Используем параметры для совместимости с Yandex Cloud
             self.llm = ChatOpenAI(
                 model=settings.yandex_cloud_llm_model,
-                openai_api_key=settings.yandex_cloud_api_key,
-                openai_api_base="https://llm.api.cloud.yandex.net/v1",
+                api_key=settings.yandex_cloud_api_key,
+                base_url="https://llm.api.cloud.yandex.net/v1",
+                default_headers={
+                    "x-folder-id": settings.yandex_cloud_folder_id
+                },
                 temperature=0.1,
+                reasoning_effort="low"
             )
     
     async def analyze_logs_for_object(self, uuid_object: str) -> Dict[str, Any]:
