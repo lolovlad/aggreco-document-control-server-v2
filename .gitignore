@@ -6,8 +6,11 @@ __pycache__/
 
 # env / secrets
 .env
+*.env
 .env.*
+*.env.*
 .env-*
+*.env-*
 
 # docker artifacts
 *.log
