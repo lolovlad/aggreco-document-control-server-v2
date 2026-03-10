@@ -1,0 +1,50 @@
+version: "3.7"
+services:
+  web:
+    container_name: nginx-python
+    image: nginx:latest
+    ports:
+      - 8085:80
+      - 8082:443
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /etc/ssl/certs/cloud_aggreko.crt:/etc/nginx/ssl/certs/cloud_aggreko.crt
+      - /etc/ssl/private/cloud_aggreko.key:/etc/nginx/ssl/private/cloud_aggreko.key
+    depends_on:
+      - app
+    networks:
+      - aggreco-document-control-server_agk_tool_net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_document
+    ports:
+      - 8001:8001
+    command: [ "/app/docker/app.sh" ]
+    env_file:
+      - .env
+    depends_on:
+      - minio
+    networks:
+      - aggreco-document-control-server_agk_tool_net
+
+  minio:
+    container_name: files_s3
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/data
+    networks:
+      - aggreco-document-control-server_agk_tool_net
+    env_file:
+      - .env
+    command: server --console-address ":9001" /data
+
+networks:
+  aggreco-document-control-server_agk_tool_net:
+    external: true
+    name: aggreco-document-control-server_agk_tool_net

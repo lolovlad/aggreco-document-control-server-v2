@@ -1,25 +1,71 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func
+from httpx import AsyncClient
 
 from .api import router
 from .settings import settings
+from .database import async_session as async_db_session
+from .tables import User
+from .minio import async_session as async_minio_session
+from .response import get_client
 
-from .repositories import UserRepository
-from .database import async_session
-from .tables import User, TypeUser
 
-
-#origins = [
-#    f"http://{settings.cors_host}:{settings.cors_port}",
-#    f"http://localhost"
-#]
+# origins = [
+#     f"http://{settings.cors_host}:{settings.cors_port}",
+#     f"http://localhost"
+# ]
 
 origins = ["*"]
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Проверка доступности основных внешних сервисов при старте приложения:
+    - база данных
+    - MinIO
+    - микросервис пользователей
+    """
+    print("[CHECKAPP] start")
+
+    # Проверка подключения к БД и наличия хотя бы одного пользователя
+    try:
+        async with async_db_session() as session:
+            result = await session.execute(select(func.count(User.id)))
+            count_users = result.scalar()
+        print(f"[CHECKAPP][DB] ok, users_count={count_users}")
+    except Exception as e:
+        print(f"[CHECKAPP][DB] ERROR: {e}")
+
+    # Проверка MinIO
+    try:
+        buckets = await async_minio_session.list_buckets()
+        print(f"[CHECKAPP][MinIO] ok, buckets={[b.name for b in buckets]}")
+    except Exception as e:
+        print(f"[CHECKAPP][MinIO] ERROR: {e}")
+
+    # Проверка микросервиса пользователей
+    try:
+        async for client in get_client():
+            assert isinstance(client, AsyncClient)
+            break
+        url = f"{settings.user_service_url.rstrip('/')}/v1/user/get/profile"
+        # без авторизации ожидаем 401/403, нам важно что сервис отвечает и не падает
+        resp = await client.get(url)
+        print(f"[CHECKAPP][USER_SERVICE] status={resp.status_code} url={url}")
+    except Exception as e:
+        print(f"[CHECKAPP][USER_SERVICE] ERROR: {e}")
+
+    print("[CHECKAPP] done")
+
+    # Здесь можно добавить логику graceful shutdown при необходимости
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

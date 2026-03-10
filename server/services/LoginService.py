@@ -2,6 +2,7 @@ from jose import JWTError, jwt
 
 from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+from httpx import AsyncClient
 
 from .DocumentService import DocumentService
 from ..repositories import UserRepository
@@ -9,15 +10,39 @@ from ..models.User import UserGet, TypeUser
 from ..models.UserLogin import UserLogin, Token, RedirectYandex
 from ..settings import settings
 from ..tables import User
+from ..response import get_client
 from datetime import datetime, timedelta
 
 import re
 
-oauth2_cheme = OAuth2PasswordBearer(tokenUrl='/v1/login/sign-in/')
+# URL микросервиса пользователей для получения профиля по токену
+# В .env нужно задать USER_SERVICE_URL, например:
+# USER_SERVICE_URL=http://agk-user-server:8000
+USER_PROFILE_URL = f"{settings.user_service_url.rstrip('/')}/v1/user/get/profile"
+
+oauth2_cheme = OAuth2PasswordBearer(
+    tokenUrl="/api/users/v1/login/sign-in/"
+)
 
 
-def get_current_user(token: str = Depends(oauth2_cheme)) -> UserGet:
-    return LoginServices.validate_token(token)
+async def get_current_user(
+    token: str = Depends(oauth2_cheme),
+    client: AsyncClient = Depends(get_client),
+) -> UserGet:
+    try:
+        response = await client.get(
+            USER_PROFILE_URL,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    except Exception:
+        # Если не удалось достучаться до микросервиса пользователей — считаем, что токен невалиден
+        raise LoginServices.exception_unauthorized
+
+    if response.status_code != 200:
+        raise LoginServices.exception_unauthorized
+
+    data = response.json()
+    return UserGet.model_validate(data)
 
 
 class LoginServices:

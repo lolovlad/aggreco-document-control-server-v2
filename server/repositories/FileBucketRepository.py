@@ -64,8 +64,14 @@ class FileBucketRepository:
             await self.__client.remove_object(self.__name_bucket, file_key)
         except Exception:
             pass
-
+    
     async def get_file(self, file_key: str) -> bytes:
+        # Отладочный вывод хоста MinIO и ключа файла
+        try:
+            endpoint = getattr(self.__client, "_endpoint_url", None)
+        except Exception:
+            endpoint = None
+        print(f"[MinIO] get_file: endpoint={endpoint} bucket={self.__name_bucket} key={file_key}")
         async with aiohttp.ClientSession() as session:
             file = await self.__client.get_object(self.__name_bucket, file_key, session)
             content = await file.read()

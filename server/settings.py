@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     yandex_cloud_folder_id: str | None
     yandex_cloud_llm_model: str
 
+    user_service_url: str
+
     root_path: str = os.path.dirname(os.path.abspath(__file__))
 
 

@@ -1,1 +1,13 @@
 data/
+*.pyc
+__pycache__/
+.idea/
+.vscode/
+
+# env / secrets
+.env
+.env.*
+.env-*
+
+# docker artifacts
+*.log

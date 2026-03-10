@@ -1,34 +1,39 @@
 version: "3.7"
 services:
-  #web:
-  #  container_name: nginx-python
-  #  image: nginx:latest
-  #  depends_on:
-  #    - app
-  #  ports:
-  #    - 8085:80
-  #    - 8082:443
-  #  volumes:
-  #    - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-  #    - /etc/ssl/certs/cloud_aggreko.crt:/etc/nginx/ssl/certs/cloud_aggreko.crt
-  #    - /etc/ssl/private/cloud_aggreko.key:/etc/nginx/ssl/private/cloud_aggreko.key
-  #  networks:
-  #    - default
-  #app:
-  #  build:
-  #    context: .
-  #    dockerfile: Dockerfile
-  #  container_name: app_document
-  #  ports:
-  #    - 9999:8000
-  #  command: [ "/app/docker/app.sh" ]
-  #  env_file:
-  #    - .env-deploy
+  web:
+    container_name: nginx-python
+    image: nginx:latest
+    ports:
+      - 8085:80
+      - 8082:443
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - agk_tool_net
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_document
+    ports:
+      - 8001:8001
+    command: [ "/app/docker/app.sh" ]
+    env_file:
+      - .env
+    depends_on:
+      - db-main
+      - minio
+    networks:
+      - agk_tool_net
 
   db-main:
     image: postgres:latest
     container_name: db_aggreco
     restart: always
+    command: ["postgres", "-p", "5435"]
     expose:
       - 5435
     ports:
@@ -37,18 +42,22 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - ./data/postgres/pgdata:/var/lib/postgresql/data/pgdata
+    networks:
+      - agk_tool_net
     env_file:
       - .env
 
   pgadmin:
     container_name: pgadmin_document
-    image: dpage/pgadmin4
+    image: dpage/pgadmin4:latest
     restart: always
     depends_on:
       - db-main
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin
+    networks:
+      - agk_tool_net
     ports:
       - "5050:80"
 
@@ -60,6 +69,13 @@ services:
       - "9001:9001"
     volumes:
       - ./data/minio:/data
+    networks:
+      - agk_tool_net
     env_file:
       - .env
     command: server --console-address ":9001" /data
+
+
+networks:
+  agk_tool_net:
+    driver: bridge
