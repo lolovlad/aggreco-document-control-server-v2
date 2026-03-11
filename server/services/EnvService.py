@@ -7,8 +7,7 @@ from ..models.Accident import GetTypeBrake, SignsAccident
 from ..models.Event import TypeEvent, StateEvent
 from ..models.Claim import StateClaimModel
 
-from ..tables import (Profession as ProfessionORM,
-                      TypeEquipment as TypeEquipmentORM,
+from ..tables import (TypeEquipment as TypeEquipmentORM,
                       Region as RegionORM,
                       TypeBrake as TypeBrakeORM,
                       SignsAccident as SignsAccidentORM)
@@ -25,25 +24,6 @@ class EnvService:
                  type_brake: TypeBrakeRepository = Depends()):
         self.__env_repo: EnvRepository = env_repo
         self.__type_brake_repo: TypeBrakeRepository = type_brake
-
-    async def get_type_users(self) -> list[GetTypeUser]:
-        type_users = await self.__env_repo.get_all_type_user()
-        return [GetTypeUser.model_validate(obj, from_attributes=True) for obj in type_users]
-
-    async def add_profession(self, name: str, description: str) -> ProfessionORM:
-        entity = ProfessionORM(name=name, description=description)
-        prof = await self.__env_repo.add_prof_user(entity)
-        if prof is None:
-            prof = await self.__env_repo.get_prof_by_name(name)
-        return prof
-
-    async def get_profession_user(self) -> list[Profession]:
-        prof_users = await self.__env_repo.get_all_prof_user()
-        return [Profession.model_validate(obj, from_attributes=True) for obj in prof_users]
-
-    async def delete_prof(self, id_prof: int) -> bool:
-        is_del = await self.__env_repo.delete_prof(id_prof)
-        return is_del
 
     async def delete_type_equipment(self, id_type_equipment: int) -> bool:
         is_del = await self.__env_repo.delete_type_equipment(id_type_equipment)
@@ -75,7 +55,7 @@ class EnvService:
         entity = await self.__env_repo.get_all_type_equip()
         return [TypeEquipment.model_validate(i, from_attributes=True) for i in entity]
 
-    async def add_type_equipment(self, type_equipment: PostTypeEquipment) -> ProfessionORM:
+    async def add_type_equipment(self, type_equipment: PostTypeEquipment) -> TypeEquipmentORM:
         entity = TypeEquipmentORM(
             name=type_equipment.name,
             code=type_equipment.code,

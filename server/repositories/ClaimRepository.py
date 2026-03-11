@@ -14,18 +14,20 @@ class ClaimRepository:
         self.__session: AsyncSession = session
 
     async def count_row(self,
-                        id_user: int | None,
+                        user_uuid: str | None,
                         uuid_object: str,
                         id_state_claim: int,
                         date_from: datetime | None = None,
                         date_to: datetime | None = None
                         ) -> int:
-        response = (select(func.count(distinct(Claim.id)))
-                    .join(Accident, Claim.id_accident == Accident.id)
-                    .join(Object, Accident.id_object == Object.id)
-                    .join(ObjectToUser, ObjectToUser.id_object == Object.id))
-        if id_user is not None:
-            response = response.where(ObjectToUser.id_user == id_user)
+        response = (
+            select(func.count(distinct(Claim.id)))
+            .join(Accident, Claim.id_accident == Accident.id)
+            .join(Object, Accident.id_object == Object.id)
+            .join(ObjectToUser, ObjectToUser.id_object == Object.id)
+        )
+        if user_uuid is not None:
+            response = response.where(ObjectToUser.user_uuid == user_uuid)
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)
         if id_state_claim != 0:
@@ -40,7 +42,7 @@ class ClaimRepository:
         return result.scalars().first()
 
     async def get_limit_claim(self,
-                              id_user: int,
+                              user_uuid: str,
                               uuid_object: str,
                               id_state_claim: int,
                               start: int,
@@ -48,11 +50,13 @@ class ClaimRepository:
                               date_from: datetime | None = None,
                               date_to: datetime | None = None
                               ) -> list[Claim]:
-        response = (select(Claim).distinct()
-                    .join(Accident, Claim.id_accident == Accident.id)
-                    .join(Object, Accident.id_object == Object.id)
-                    .join(ObjectToUser, ObjectToUser.id_object == Object.id)
-                    .where(ObjectToUser.id_user == id_user))
+        response = (
+            select(Claim).distinct()
+            .join(Accident, Claim.id_accident == Accident.id)
+            .join(Object, Accident.id_object == Object.id)
+            .join(ObjectToUser, ObjectToUser.id_object == Object.id)
+            .where(ObjectToUser.user_uuid == user_uuid)
+        )
 
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)

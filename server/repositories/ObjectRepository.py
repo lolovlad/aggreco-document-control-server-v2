@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 
 from fastapi import Depends
 
-from ..tables import Object, StateObject, User, ObjectToUser, Equipment, Region
+from ..tables import Object, ObjectToUser, Equipment
 from ..database import get_session
 
 
@@ -21,14 +21,21 @@ class ObjectRepository:
         result = await self.__session.execute(response)
         return result.scalars().all()
 
-    async def get_all_object(self, filter_user: int) -> list[Object]:
-        if filter_user == 0:
+    async def get_all_object(self, filter_user: str | None) -> list[Object]:
+        """
+        Возвращает список объектов.
+        Если filter_user is None – возвращаем все не удалённые объекты.
+        Иначе фильтруем по UUID пользователя через ObjectToUser.user_uuid.
+        """
+        if filter_user is None:
             response = select(Object).where(Object.is_deleted == False).order_by(Object.id)
         else:
-            response = (select(Object)
-                        .join(ObjectToUser)
-                        .where(Object.is_deleted == False)
-                        .where(ObjectToUser.id_user == filter_user))
+            response = (
+                select(Object)
+                .join(ObjectToUser, Object.id == ObjectToUser.id_object)
+                .where(Object.is_deleted == False)
+                .where(ObjectToUser.user_uuid == filter_user)
+            )
         result = await self.__session.execute(response)
         return result.unique().scalars().all()
 
@@ -66,41 +73,46 @@ class ObjectRepository:
         except Exception:
             await self.__session.rollback()
 
-    async def get_user_by_uuid_object(self, uuid: str) -> list[User]:
+    async def get_user_by_uuid_object(self, uuid: str) -> list[str]:
+        """
+        Возвращает список UUID пользователей, привязанных к объекту.
+        """
         entity = await self.get_by_uuid(uuid)
-        response = select(User).join(ObjectToUser).where(ObjectToUser.id_object == entity.id)
+        response = select(ObjectToUser.user_uuid).where(ObjectToUser.id_object == entity.id)
         result = await self.__session.execute(response)
-        return result.scalars().all()
+        return [str(u) for u in result.scalars().all()]
 
     async def unique_object_to_user(self, uuid_object: str, uuid_user: str) -> bool:
-        response = select(ObjectToUser).\
-            join(Object).\
-            join(User).\
-            where(Object.uuid == uuid_object).\
-            where(User.uuid == uuid_user)
+        response = (
+            select(ObjectToUser)
+            .join(Object, Object.id == ObjectToUser.id_object)
+            .where(Object.uuid == uuid_object)
+            .where(ObjectToUser.user_uuid == uuid_user)
+        )
         result = await self.__session.execute(response)
         entity = result.scalars().first()
-        if entity is None:
-            return True
-        return False
+        return entity is None
 
-    async def add_user_to_object(self, obj: Object, user: User):
+    async def add_user_to_object(self, obj: Object, user_uuid: str):
         try:
-            self.__session.add(ObjectToUser(
-                id_object=obj.id,
-                id_user=user.id
-            ))
+            self.__session.add(
+                ObjectToUser(
+                    id_object=obj.id,
+                    user_uuid=user_uuid,
+                )
+            )
             await self.__session.commit()
         except:
             await self.__session.rollback()
             raise Exception
 
     async def delete_user_to_object(self, uuid_object: str, uuid_user: str):
-        response = select(ObjectToUser). \
-            join(Object). \
-            join(User). \
-            where(Object.uuid == uuid_object). \
-            where(User.uuid == uuid_user)
+        response = (
+            select(ObjectToUser)
+            .join(Object, Object.id == ObjectToUser.id_object)
+            .where(Object.uuid == uuid_object)
+            .where(ObjectToUser.user_uuid == uuid_user)
+        )
         result = await self.__session.execute(response)
         entity = result.scalars().first()
         if entity is None:
@@ -116,27 +128,28 @@ class ObjectRepository:
         result = await self.__session.execute(response)
         return result.fetchall()
 
-    async def get_registrate_user_by_object(self, user_id: int):
-        response = select(ObjectToUser).where(ObjectToUser.id_user == user_id)
+    async def get_registrate_user_by_object(self, user_uuid: str):
+        response = select(ObjectToUser).where(ObjectToUser.user_uuid == user_uuid)
         result = await self.__session.execute(response)
         return result.scalars().all()
 
     async def get_object_by_user_uuid(self, uuid_user: str) -> list[Object] | None:
-        response = (select(Object)
-                    .join(ObjectToUser, Object.id == ObjectToUser.id_object)
-                    .join(User, User.id == ObjectToUser.id_user)
-                    .where(User.uuid == uuid_user))
+        response = (
+            select(Object)
+            .join(ObjectToUser, Object.id == ObjectToUser.id_object)
+            .where(ObjectToUser.user_uuid == uuid_user)
+        )
         result = await self.__session.execute(response)
         return result.scalars().all()
 
     async def get_object_by_uuid_equipment(self, uuid_user: str, uuid_equipment: str) -> Object | None:
-        response = (select(Object)
-                    .join(Equipment)
-                    .where(Equipment.uuid == uuid_equipment)
-                    .where(Equipment.is_delite == False)
-                    .join(ObjectToUser, Object.id == ObjectToUser.id_object)
-                    .join(User, User.id == ObjectToUser.id_user)
-                    .where(User.uuid == uuid_user)
-                    )
+        response = (
+            select(Object)
+            .join(Equipment)
+            .where(Equipment.uuid == uuid_equipment)
+            .where(Equipment.is_delite == False)
+            .join(ObjectToUser, Object.id == ObjectToUser.id_object)
+            .where(ObjectToUser.user_uuid == uuid_user)
+        )
         result = await self.__session.execute(response)
         return result.scalars().first()

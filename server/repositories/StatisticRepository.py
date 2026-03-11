@@ -2,18 +2,37 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, extract, and_, asc, desc
 from typing import Optional, List, Literal
 from uuid import UUID
+from types import SimpleNamespace
 
 from fastapi import Depends
 
-from ..tables import Claim, Accident, Object, StateClaim, TypeBrake, TypeBrakeToAccident, StateAccident, ClassBrake, User, Equipment, SignsAccident, EquipmentToAccident, SignsAccidentToAccident
+from ..tables import (
+    Claim,
+    Accident,
+    Object,
+    StateClaim,
+    TypeBrake,
+    TypeBrakeToAccident,
+    ClassBrake,
+    Equipment,
+    SignsAccident,
+    EquipmentToAccident,
+    SignsAccidentToAccident,
+)
 from ..database import get_session
+from .UserRepository import UserRepository
 
 from datetime import datetime
 
 
 class StatisticRepository:
-    def __init__(self, session: AsyncSession = Depends(get_session)):
+    def __init__(
+        self,
+        session: AsyncSession = Depends(get_session),
+        user_repo: UserRepository = Depends(),
+    ):
         self.__session: AsyncSession = session
+        self.__user_repo: UserRepository = user_repo
 
     async def get_statistic_state_group_by_universal(
             self,
@@ -349,18 +368,15 @@ class StatisticRepository:
         if list_object:
             conditions.append(Object.uuid.in_(list_object))
 
-        # Основной запрос для получения Claim, Accident, TypeBrake, ClassBrake
+        # Основной запрос для получения Claim, Accident, TypeBrake, ClassBrake.
+        # Данные пользователя (ФИО, email) подтягиваем из микросервиса по user_uuid.
         query = (
             select(
                 # Accident.id нужен для получения equipment и signs (скрытое поле)
                 Accident.id.label("accident_id"),
                 # Claim поля (исключаем: state_claim, main_document, edit_document, comment, last_datetime_edit, id, uuid)
                 Claim.datetime.label("claim_datetime"),
-                # User из Claim
-                User.name.label("user_name"),
-                User.surname.label("user_surname"),
-                User.patronymic.label("user_patronymic"),
-                User.email.label("user_email"),
+                Claim.user_uuid.label("user_uuid"),
                 # Accident поля (исключаем: time_line, event, state_accident, time_zone, id, uuid)
                 Accident.datetime_start.label("accident_datetime_start"),
                 Accident.datetime_end.label("accident_datetime_end"),
@@ -380,7 +396,6 @@ class StatisticRepository:
             .join(Accident, Claim.id_accident == Accident.id)
             .join(Object, Accident.id_object == Object.id)
             .join(StateClaim, Claim.id_state_claim == StateClaim.id)
-            .join(User, Claim.id_user == User.id)
             .join(TypeBrakeToAccident, Accident.id == TypeBrakeToAccident.id_accident)
             .join(TypeBrake, TypeBrake.id == TypeBrakeToAccident.id_type_brake)
             .join(ClassBrake, ClassBrake.id == TypeBrake.id_type)
@@ -388,8 +403,48 @@ class StatisticRepository:
             .order_by(Claim.datetime.desc())
         )
 
-        result = await self.__session.execute(query)
-        return result.fetchall()
+        db_result = await self.__session.execute(query)
+        rows = db_result.fetchall()
+
+        # Собираем все уникальные UUID пользователей из заявок
+        user_uuids: list[str] = []
+        for row in rows:
+            if row.user_uuid is not None:
+                uuid_str = str(row.user_uuid)
+                if uuid_str not in user_uuids:
+                    user_uuids.append(uuid_str)
+
+        # Запрашиваем пользователей в микросервисе
+        users = await self.__user_repo.get_users_by_uuids(user_uuids)
+        users_by_uuid = {str(user.uuid): user for user in users}
+
+        # Возвращаем данные в том же формате полей, который ожидает сервис экспорта
+        enriched_rows: list[SimpleNamespace] = []
+        for row in rows:
+            user = users_by_uuid.get(str(row.user_uuid)) if row.user_uuid is not None else None
+
+            enriched_rows.append(
+                SimpleNamespace(
+                    accident_id=row.accident_id,
+                    claim_datetime=row.claim_datetime,
+                    user_name=getattr(user, "name", None) if user else None,
+                    user_surname=getattr(user, "surname", None) if user else None,
+                    user_patronymic=getattr(user, "patronymic", None) if user else None,
+                    user_email=getattr(user, "email", None) if user else None,
+                    accident_datetime_start=row.accident_datetime_start,
+                    accident_datetime_end=row.accident_datetime_end,
+                    accident_causes=row.accident_causes,
+                    accident_damaged_equipment=row.accident_damaged_equipment,
+                    accident_additional_material=row.accident_additional_material,
+                    accident_is_deleted=row.accident_is_deleted,
+                    object_name=row.object_name,
+                    type_brake_code=row.type_brake_code,
+                    type_brake_name=row.type_brake_name,
+                    class_brake_description=row.class_brake_description,
+                )
+            )
+
+        return enriched_rows
 
     async def get_accident_equipment(self, accident_id: int):
         """Получение списка оборудования для аварии"""

@@ -8,7 +8,6 @@ from httpx import AsyncClient
 from .api import router
 from .settings import settings
 from .database import async_session as async_db_session
-from .tables import User
 from .minio import async_session as async_minio_session
 from .response import get_client
 
@@ -30,15 +29,6 @@ async def lifespan(app: FastAPI):
     - микросервис пользователей
     """
     print("[CHECKAPP] start")
-
-    # Проверка подключения к БД и наличия хотя бы одного пользователя
-    try:
-        async with async_db_session() as session:
-            result = await session.execute(select(func.count(User.id)))
-            count_users = result.scalar()
-        print(f"[CHECKAPP][DB] ok, users_count={count_users}")
-    except Exception as e:
-        print(f"[CHECKAPP][DB] ERROR: {e}")
 
     # Проверка MinIO
     try:

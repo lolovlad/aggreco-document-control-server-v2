@@ -3,7 +3,7 @@ from sqlalchemy import select, func, or_, distinct
 
 from fastapi import Depends
 
-from ..tables import TechnicalProposals, User, StateClaim, Object
+from ..tables import TechnicalProposals, StateClaim, Object
 from ..database import get_session
 
 from datetime import datetime
@@ -17,11 +17,12 @@ class ProposalsRepository:
                         uuid_user: str | None,
                         uuid_object: str,
                         id_state_claim: int) -> int:
-        response = (select(func.count(distinct(TechnicalProposals.id)))
-                    .join(User, TechnicalProposals.id_user == User.id)
-                    .join(Object, TechnicalProposals.id_object == Object.id))
+        response = (
+            select(func.count(distinct(TechnicalProposals.id)))
+            .join(Object, TechnicalProposals.id_object == Object.id)
+        )
         if uuid_user is not None:
-            response = response.where(User.uuid == uuid_user)
+            response = response.where(TechnicalProposals.user_uuid == uuid_user)
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)
         if id_state_claim != 0:
@@ -36,10 +37,11 @@ class ProposalsRepository:
                         id_state_claim: int,
                         start: int,
                         count: int) -> list[TechnicalProposals]:
-        response = (select(TechnicalProposals).distinct()
-                    .join(User, User.id == TechnicalProposals.id_user)
-                    .join(Object, TechnicalProposals.id_object == Object.id)
-                    .where(User.uuid == uuid_user))
+        response = (
+            select(TechnicalProposals).distinct()
+            .join(Object, TechnicalProposals.id_object == Object.id)
+            .where(TechnicalProposals.user_uuid == uuid_user)
+        )
 
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)
@@ -54,10 +56,11 @@ class ProposalsRepository:
                               uuid_object: str,
                               start: int,
                               count: int) -> list[TechnicalProposals]:
-        response = (select(TechnicalProposals).distinct()
-                    .join(User, TechnicalProposals.id_user == User.id)
-                    .join(StateClaim, TechnicalProposals.id_state_claim == StateClaim.id)
-                    .join(Object, TechnicalProposals.id_object == Object.id))
+        response = (
+            select(TechnicalProposals).distinct()
+            .join(StateClaim, TechnicalProposals.id_state_claim == StateClaim.id)
+            .join(Object, TechnicalProposals.id_object == Object.id)
+        )
         if uuid_object != "all":
             response = response.where(Object.uuid == uuid_object)
 

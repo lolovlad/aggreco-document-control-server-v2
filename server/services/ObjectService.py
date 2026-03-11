@@ -57,11 +57,12 @@ class ObjectService:
         return objects
 
     async def get_all_object(self, user: UserGet) -> list[GetObject]:
+        # Для не обычных пользователей (админы/эксперты) возвращаем все объекты
         if user.type.name != "user":
-            filter_user = 0
+            filter_user = None
         else:
-            user = await self.__user_repo.get_user_by_uuid(user.uuid)
-            filter_user = user.id
+            # Для обычного пользователя фильтруем по его UUID
+            filter_user = str(user.uuid)
 
         entity = await self.__object_repo.get_all_object(filter_user)
         objects = [GetObject.model_validate(entity, from_attributes=True) for entity in entity]
@@ -107,24 +108,30 @@ class ObjectService:
             raise Exception
 
     async def get_users_object(self, uuid: str) -> list[UserGet]:
-        entity = await self.__object_repo.get_user_by_uuid_object(uuid)
-        users = [UserGet.model_validate(entity, from_attributes=True) for entity in entity]
+        # Получаем UUID пользователей, привязанных к объекту
+        user_uuids = await self.__object_repo.get_user_by_uuid_object(uuid)
+        if not user_uuids:
+            return []
+
+        # Загружаем пользователей из микросервиса по их UUID
+        users = await self.__user_repo.get_users_by_uuids(user_uuids)
         return users
 
     async def registrate_user(self, uuid_object: str, uuid_user: str) -> bool:
         is_add = await self.__object_repo.unique_object_to_user(uuid_object, uuid_user)
 
         if is_add:
+            # Проверяем пользователя в микросервисе
             user = await self.__user_repo.get_user_by_uuid(uuid_user)
-            obj = await self.__object_repo.get_by_uuid(uuid_object)
-            if user.type.name == "user":
-                try:
-                    await self.__object_repo.add_user_to_object(obj, user)
-                    return True
-                except Exception:
-                    raise Exception
-            else:
+            if user is None or user.type.name != "user":
                 return False
+
+            obj = await self.__object_repo.get_by_uuid(uuid_object)
+            try:
+                await self.__object_repo.add_user_to_object(obj, uuid_user)
+                return True
+            except Exception:
+                raise Exception
         return False
 
     async def delete_user_in_object(self, uuid_object: str, uuid_user: str):

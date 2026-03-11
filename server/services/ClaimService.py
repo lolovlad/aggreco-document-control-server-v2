@@ -30,23 +30,21 @@ class ClaimServices:
     def count_item(self, item):
         self.__count_item = item
 
-    async def get_count_page(self,
-                             uuid_user: str | None,
-                             uuid_object: str,
-                             id_state_claim: int,
-                             date_from: datetime | None = None,
-                             date_to: datetime | None = None
-                             ) -> int:
-        id_user = None
-        if uuid_user:
-            user = await self.__user_repo.get_user_by_uuid(uuid_user)
-            id_user = user.id
-
-        count_row = await self.__claim_repo.count_row(id_user,
-                                                      uuid_object,
-                                                      id_state_claim,
-                                                      date_from,
-                                                      date_to)
+    async def get_count_page(
+        self,
+        uuid_user: str | None,
+        uuid_object: str,
+        id_state_claim: int,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        count_row = await self.__claim_repo.count_row(
+            uuid_user,
+            uuid_object,
+            id_state_claim,
+            date_from,
+            date_to,
+        )
         sub_page = 0
         if count_row % self.__count_item > 0:
             sub_page += 1
@@ -63,23 +61,66 @@ class ClaimServices:
         start = (num_page - 1) * self.__count_item
 
         if user.type.name == "user":
-            user = await self.__user_repo.get_user_by_uuid(user.uuid)
-            entity = await self.__claim_repo.get_limit_claim(user.id,
-                                                             uuid_object,
-                                                             id_state_claim,
-                                                             start,
-                                                             self.__count_item,
-                                                             date_from,
-                                                             date_to)
+            entities = await self.__claim_repo.get_limit_claim(
+                str(user.uuid),
+                uuid_object,
+                id_state_claim,
+                start,
+                self.__count_item,
+                date_from,
+                date_to,
+            )
         else:
-            entity = await self.__claim_repo.get_limit_claim_admin(uuid_object,
-                                                                   id_state_claim,
-                                                                   start,
-                                                                   self.__count_item,
-                                                                   date_from,
-                                                                   date_to)
-        claim = [GetClaim.model_validate(entity, from_attributes=True) for entity in entity]
-        return claim
+            entities = await self.__claim_repo.get_limit_claim_admin(
+                uuid_object,
+                id_state_claim,
+                start,
+                self.__count_item,
+                date_from,
+                date_to,
+            )
+
+        # Собираем UUID пользователей из заявок и подгружаем их из микросервиса
+        user_uuid_set: set[str] = set()
+        for entity in entities:
+            if entity.user_uuid is not None:
+                user_uuid_set.add(str(entity.user_uuid))
+
+        users = await self.__user_repo.get_users_by_uuids(list(user_uuid_set))
+        users_by_uuid = {str(u.uuid): u for u in users}
+
+        claims: list[GetClaim] = []
+        for entity in entities:
+            user_uuid_str = str(entity.user_uuid) if entity.user_uuid is not None else None
+            user_model = users_by_uuid.get(user_uuid_str) if user_uuid_str is not None else None
+
+            if user_model is None:
+                # Если пользователя не нашли в микросервисе – считаем это ошибкой данных
+                raise ValueError(f"Пользователь с UUID {user_uuid_str} не найден в микросервисе")
+
+            state_claim_model = StateClaimModel(
+                id=entity.state_claim.id,
+                name=entity.state_claim.name,
+                description=entity.state_claim.description,
+            )
+
+            accident_model = GetAccident.model_validate(entity.accident, from_attributes=True)
+
+            claims.append(
+                GetClaim(
+                    uuid=entity.uuid,
+                    datetime=entity.datetime,
+                    main_document=entity.main_document,
+                    edit_document=entity.edit_document,
+                    comment=entity.comment,
+                    id_state_claim=entity.id_state_claim,
+                    state_claim=state_claim_model,
+                    user=user_model,
+                    accident=accident_model,
+                )
+            )
+
+        return claims
 
     async def add_claim(self,
                         uuid_user: str,
@@ -88,12 +129,10 @@ class ClaimServices:
 
         state_claim = await self.__claim_repo.get_state_claim_by_name("draft")
 
-        user = await self.__user_repo.get_user_by_uuid(uuid_user)
-
         entity = Claim(
             datetime=claim_model.datetime,
             id_state_claim=state_claim.id,
-            id_user=user.id,
+            user_uuid=uuid_user,
             main_document="Не представлен",
             edit_document="Не представлен",
             id_accident=id_accident
@@ -104,7 +143,32 @@ class ClaimServices:
         entity = await self.__claim_repo.get_by_uuid(uuid_claim)
         if entity is None:
             return None
-        return GetClaim.model_validate(entity, from_attributes=True)
+
+        # Подгружаем пользователя по UUID из микросервиса
+        user_uuid_str = str(entity.user_uuid) if entity.user_uuid is not None else None
+        user_model = await self.__user_repo.get_user_by_uuid(user_uuid_str) if user_uuid_str is not None else None
+        if user_model is None:
+            raise ValueError(f"Пользователь с UUID {user_uuid_str} не найден в микросервисе")
+
+        state_claim_model = StateClaimModel(
+            id=entity.state_claim.id,
+            name=entity.state_claim.name,
+            description=entity.state_claim.description,
+        )
+
+        accident_model = GetAccident.model_validate(entity.accident, from_attributes=True)
+
+        return GetClaim(
+            uuid=entity.uuid,
+            datetime=entity.datetime,
+            main_document=entity.main_document,
+            edit_document=entity.edit_document,
+            comment=entity.comment,
+            id_state_claim=entity.id_state_claim,
+            state_claim=state_claim_model,
+            user=user_model,
+            accident=accident_model,
+        )
 
     async def upload_file(self, type_file: str, uuid: str, file: UploadFile):
         ext = file.filename.split(".")[-1]

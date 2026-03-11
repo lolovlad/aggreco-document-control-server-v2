@@ -26,8 +26,12 @@ class DocumentRepository:
         result = await self.__session.execute(response)
         return result.scalars().first()
 
-    async def get_registrate_by_doc_id_and_user_id(self, doc_id: int, user_id: int):
-        response = select(func.count(UserToDocument.id_document)).where(UserToDocument.id_user == user_id).where(UserToDocument.id_document == doc_id)
+    async def get_registrate_by_doc_id_and_user_uuid(self, doc_id: int, user_uuid: str):
+        response = (
+            select(func.count(UserToDocument.id_document))
+            .where(UserToDocument.user_uuid == user_uuid)
+            .where(UserToDocument.id_document == doc_id)
+        )
         result = await self.__session.execute(response)
         return result.scalars().first()
 
@@ -39,10 +43,10 @@ class DocumentRepository:
             await self.__session.rollback()
             raise Exception
 
-    async def registrate_user_to_document(self, id_user: int, id_document: int):
+    async def registrate_user_to_document(self, user_uuid: str, id_document: int):
         entity = UserToDocument(
             id_document=id_document,
-            id_user=id_user
+            user_uuid=user_uuid,
         )
         try:
             self.__session.add(entity)

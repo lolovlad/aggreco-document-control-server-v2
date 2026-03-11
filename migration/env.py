@@ -32,6 +32,27 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 target_metadata = base.metadata
 
+
+def include_object(object, name, type_, reflected, compare_to):
+    """
+    Управляем, какие объекты Alembic может трогать.
+
+    - Не трогаем системную таблицу версий Alembic.
+    - Не трогаем таблицы, которые есть в БД, но отсутствуют в нашей модели
+      (чтобы случайно не пытаться их переименовать/удалить).
+    """
+    if type_ == "table":
+        # alembic_version — служебная таблица, её из автогенерации исключаем
+        if name == "alembic_version":
+            return False
+
+        # Если таблица отражена из БД, но ей не соответствует объект в metadata,
+        # значит это "чужая" таблица — Alembic не должен её изменять.
+        if reflected and compare_to is None:
+            return False
+
+    return True
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
@@ -56,6 +77,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -77,7 +100,10 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

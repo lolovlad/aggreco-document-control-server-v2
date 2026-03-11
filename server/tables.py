@@ -28,53 +28,6 @@ class DeleteMixin(object):
     is_delite = Column(Boolean, default=False, nullable=True, server_default="False")
 
 
-class TypeUser(base):
-    __tablename__ = "type_user"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    name = Column(String(32), nullable=False, unique=True)
-    description = Column(String(128), nullable=True)
-
-
-class Profession(base):
-    __tablename__ = "profession"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    name = Column(String(255), nullable=False, unique=True)
-    description = Column(String(128), nullable=True)
-
-
-class User(base):
-    __tablename__ = "user"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
-
-    name = Column(String, nullable=True)
-    surname = Column(String, nullable=True)
-    patronymic = Column(String, nullable=True)
-
-    email = Column(String, nullable=True, unique=True)
-    password_hash = Column(String, nullable=True)
-    id_type = Column(Integer, ForeignKey("type_user.id"))
-    id_profession = Column(Integer, ForeignKey("profession.id"))
-    type = relationship("TypeUser", lazy="joined")
-    profession = relationship("Profession", lazy="joined")
-
-    painting = Column(String, nullable=True, default="")
-    email_send_info = Column(MutableDict.as_mutable(JSONB), nullable=True)
-
-    is_deleted = Column(Boolean, nullable=True, default=False)
-
-    @property
-    def password(self):
-        return self.password_hash
-
-    @password.setter
-    def password(self, val: str):
-        self.password_hash = generate_password_hash(val)
-
-    def check_password(self, password: str) -> bool:
-        return check_password_hash(self.password_hash, password)
-
-
 class Document(base):
     __tablename__ = "document"
     id = Column(Integer, autoincrement=True, primary_key=True)
@@ -90,8 +43,7 @@ class Document(base):
 class UserToDocument(base):
     __tablename__ = "user_to_document"
     id_document = Column(ForeignKey("document.id"), primary_key=True)
-    id_user = Column(ForeignKey("user.id"), primary_key=True)
-    user = relationship("User", lazy="joined")
+    user_uuid = Column(UUID(as_uuid=True), primary_key=True)
     datetime_view = Column(DateTime, default=datetime.now())
 
 
@@ -134,7 +86,6 @@ class Object(base):
     id_state = Column(ForeignKey("state_object.id"))
     state = relationship("StateObject", lazy="joined")
     equipment = relationship("Equipment", cascade="all, delete")
-    staff = relationship(User, secondary="object_to_user")
 
     is_deleted = Column(Boolean, nullable=True, default=False)
     settings = Column(MutableDict.as_mutable(JSONB), nullable=True, default={}, server_default="{}")
@@ -158,7 +109,7 @@ class Equipment(base):
 class ObjectToUser(base):
     __tablename__ = "object_to_user"
     id_object = Column(ForeignKey("object.id"), primary_key=True)
-    id_user = Column(ForeignKey("user.id"), primary_key=True)
+    user_uuid = Column(UUID(as_uuid=True), primary_key=True)
 
 
 class ClassBrake(base):
@@ -290,8 +241,7 @@ class Claim(base):
     id_state_claim = Column(ForeignKey("state_claim.id"))
     state_claim = relationship(StateClaim, lazy="joined")
 
-    id_user = Column(ForeignKey("user.id"))
-    user = relationship(User, lazy="joined")
+    user_uuid = Column(UUID(as_uuid=True))
 
     main_document = Column(String, nullable=True)
 
@@ -331,11 +281,9 @@ class TechnicalProposals(base):
     id_object = Column(ForeignKey("object.id"))
     object = relationship(Object, lazy="joined")
 
-    id_user = Column(ForeignKey("user.id"))
-    user = relationship(User, lazy="joined", foreign_keys=[id_user])
-
-    id_expert = Column(ForeignKey("user.id"), nullable=True, default=None)
-    expert = relationship(User, lazy="joined", foreign_keys=[id_expert])
+    # UUID пользователя и эксперта вместо локальных id
+    user_uuid = Column(UUID(as_uuid=True))
+    expert_uuid = Column(UUID(as_uuid=True), nullable=True, default=None)
 
     offer = Column(Text, nullable=True)
     additional_material = Column(String, nullable=True, default="")

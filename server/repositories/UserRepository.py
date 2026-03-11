@@ -1,90 +1,104 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from ..tables import User, TypeUser as TypeUserORM, Profession
-from ..database import get_session
+from typing import List
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from httpx import AsyncClient
+
+from ..models.User import UserGet
+from ..response import get_client
+from ..settings import settings
+
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/users/v1/login/sign-in/",
+)
 
 
 class UserRepository:
-    def __init__(self, session: AsyncSession = Depends(get_session)):
-        self.__session: AsyncSession = session
+    """
+    Репозиторий-адаптер к микросервису пользователей.
+    Работает ТОЛЬКО через HTTP, локальную таблицу user не трогаем.
+    Во все запросы (кроме явного get_user_profile_by_token) прокидываем
+    текущий Bearer-токен и корректно обрабатываем 401.
+    """
 
-    async def count_row(self) -> int:
-        response = select(func.count(User.id))
-        result = await self.__session.execute(response)
-        return result.scalars().first()
+    def __init__(
+        self,
+        client: AsyncClient = Depends(get_client),
+        token: str = Depends(oauth2_scheme),
+    ):
+        self._client: AsyncClient = client
+        self._base_url = settings.user_service_url.rstrip("/")
+        self._token: str = token
 
-    async def get_limit_user(self, start: int, count: int) -> list[User]:
-        response = select(User).offset(start).fetch(count).order_by(User.id)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
+    async def get_user_by_uuid(self, uuid: str) -> UserGet | None:
+        resp = await self._client.get(
+            f"{self._base_url}/v1/user/get_one/{uuid}",
+            headers={"Authorization": f"Bearer {self._token}"},
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in user service",
+            )
+        if resp.status_code != 200:
+            return None
+        return UserGet.model_validate(resp.json())
 
-    async def get_user_by_email(self, email: str) -> User:
-        response = select(User).where(User.email == email)
-        result = await self.__session.execute(response)
-        return result.scalars().first()
+    async def get_user_profile_by_token(self, token: str) -> UserGet | None:
+        """
+        Специальный метод, который использует переданный токен (например, при логине).
+        """
+        resp = await self._client.get(
+            f"{self._base_url}/v1/user/get/profile",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in user service",
+            )
+        if resp.status_code != 200:
+            return None
+        return UserGet.model_validate(resp.json())
 
-    async def add(self, user: User):
-        try:
-            self.__session.add(user)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
+    async def get_users_by_uuids(self, user_uuids: List[str]) -> List[UserGet]:
+        """
+        Запрашивает список пользователей по их UUID через микросервис.
+        """
+        if not user_uuids:
+            return []
+        resp = await self._client.post(
+            f"{self._base_url}/v1/user/by-uuids",
+            json={"uuids": user_uuids},
+            headers={"Authorization": f"Bearer {self._token}"},
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in user service",
+            )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        return [UserGet.model_validate(item) for item in data]
 
-    async def add_list(self, users: list[User]):
-        try:
-            self.__session.add_all(users)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
-
-    async def add_type_user(self, type_user: TypeUserORM):
-        try:
-            self.__session.add(type_user)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
-
-    async def get_user_by_uuid(self, uuid: str) -> User:
-        response = select(User).where(User.uuid == uuid)
-        result = await self.__session.execute(response)
-        return result.scalars().one()
-
-    async def get_users_by_search_field(self,
-                                        surname: str,
-                                        name: str,
-                                        patronymic: str) -> list[User]:
-        response = select(User).where(and_(
-            User.surname.ilike(f'%{surname}%'),
-            User.name.ilike(f'%{name}%'),
-            User.patronymic.ilike(f'%{patronymic}%')
-        )).order_by(User.id)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
-    async def update(self, user: User):
-        try:
-            self.__session.add(user)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
-
-    async def delete(self, uuid: str):
-        entity = await self.get_user_by_uuid(uuid)
-        entity.is_deleted = True
-
-        await self.__session.commit()
-
-    async def get_user_by_access_email(self, email: str) -> User:
-        response = select(User).where(User.email == email).where(User.is_deleted == False)
-        result = await self.__session.execute(response)
-
-    async def get_users_by_context_email(self, context: str) -> list[User]:
-        stmt = select(User).where(User.email_send_info[context].astext == 'true')
-        result = await self.__session.execute(stmt)
-        return result.scalars().all()
+    async def get_users_by_context_email(self, context: str) -> list[UserGet]:
+        """
+        Проксирующий вызов в микросервис, который возвращает
+        пользователей по флагу email_send_info[context] == true.
+        """
+        resp = await self._client.get(
+            f"{self._base_url}/v1/user/search",
+            params={"context": context},
+            headers={"Authorization": f"Bearer {self._token}"},
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in user service",
+            )
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        return [UserGet.model_validate(item) for item in data]

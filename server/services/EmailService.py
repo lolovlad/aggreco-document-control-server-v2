@@ -1,6 +1,6 @@
 from typing import Optional
 from fastapi import Depends, BackgroundTasks
-from ..tables import User
+from ..models.User import UserGet
 from ..repositories import UserRepository
 from ..mailer import EmailNotifier
 
@@ -10,10 +10,11 @@ def get_email_notifier():
 
 
 class EmailService:
-    def __init__(self,
-                 notifier: EmailNotifier = Depends(get_email_notifier),
-                 user_repo: UserRepository = Depends()
-                 ):
+    def __init__(
+        self,
+        notifier: EmailNotifier = Depends(get_email_notifier),
+        user_repo: UserRepository = Depends(),
+    ):
         self.notifier: EmailNotifier = notifier
         self.__user_repo: UserRepository = user_repo
 
@@ -25,7 +26,7 @@ class EmailService:
         template_name: str,
         is_html: bool = True,
         email_context: dict | None = None,
-        options_user: Optional[list[User]] = None,
+        options_user: Optional[list[UserGet]] = None,
     ):
         users = await self.__user_repo.get_users_by_context_email(context)
         if options_user:
@@ -37,6 +38,6 @@ class EmailService:
                 subject=subject,
                 template_name=template_name,
                 context=email_context,
-                is_html=is_html
+                is_html=is_html,
             )
         return True
