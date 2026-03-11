@@ -18,7 +18,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import relationship
 from sqlalchemy import func
-from werkzeug.security import generate_password_hash, check_password_hash
 
 
 base = declarative_base()
