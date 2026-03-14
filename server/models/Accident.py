@@ -1,4 +1,4 @@
-from pydantic import BaseModel, UUID4, field_serializer
+from pydantic import BaseModel, UUID4, field_serializer, field_validator
 
 from datetime import datetime, timedelta, timezone
 import pytz
@@ -41,8 +41,15 @@ class PostTypeBrake(BaseTypeBrake):
 
 
 class BaseAccident(BaseModel):
-    id_object: int
+    uuid_object: str
     id_state_accident: int | None
+
+    @field_validator("uuid_object", mode="before")
+    @classmethod
+    def coerce_uuid_object(cls, v):
+        if v is None:
+            return ""
+        return str(v)
     datetime_start: datetime
     datetime_end: datetime | None
     additional_material: str | None
@@ -60,11 +67,11 @@ class BaseAccident(BaseModel):
 
 class GetLightweightAccident(BaseAccident):
     uuid: UUID4
-    object: GetObject
+    object: GetObject | None = None  # подгружается из микросервиса по uuid_object
     state_accident: StateAccidentModel | None
     signs_accident: list[SignsAccident] | None
 
-    damaged_equipment: list[GetEquipment]
+    damaged_equipment: list[GetEquipment]  # подгружается из микросервиса по uuid_equipment
 
     @field_serializer("uuid")
     def serialize_uuid(self, uuid: UUID4, _info):

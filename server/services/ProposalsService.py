@@ -51,42 +51,147 @@ class ProposalsService:
         start = (num_page - 1) * self.__count_item
 
         if user.type.name == "user":
-            entity = await self.__proposals_repo.get_limit(user.uuid,
-                                                           uuid_object,
-                                                           id_state_claim,
-                                                           start,
-                                                           self.__count_item)
+            entities = await self.__proposals_repo.get_limit(
+                str(user.uuid),
+                uuid_object,
+                id_state_claim,
+                start,
+                self.__count_item,
+            )
         else:
-            entity = await self.__proposals_repo.get_limit_admin(uuid_object,
-                                                                 start,
-                                                                 self.__count_item,)
-        entity_model = [GetTechnicalProposals.model_validate(entity, from_attributes=True) for entity in entity]
-        return entity_model
+            entities = await self.__proposals_repo.get_limit_admin(
+                uuid_object,
+                start,
+                self.__count_item,
+            )
+
+        # Собираем UUID пользователей и экспертов из заявок
+        user_uuid_set: set[str] = set()
+        expert_uuid_set: set[str] = set()
+        for entity in entities:
+            if entity.user_uuid is not None:
+                user_uuid_set.add(str(entity.user_uuid))
+            if entity.expert_uuid is not None:
+                expert_uuid_set.add(str(entity.expert_uuid))
+
+        # Загружаем пользователей и экспертов из микросервиса
+        all_uuids = list(user_uuid_set.union(expert_uuid_set))
+        users = await self.__user_repo.get_users_by_uuids(all_uuids)
+        users_by_uuid = {str(u.uuid): u for u in users}
+
+        result: list[GetTechnicalProposals] = []
+        for entity in entities:
+            user_uuid_str = str(entity.user_uuid) if entity.user_uuid is not None else None
+            expert_uuid_str = str(entity.expert_uuid) if entity.expert_uuid is not None else None
+
+            user_model = users_by_uuid.get(user_uuid_str) if user_uuid_str is not None else None
+            expert_model = users_by_uuid.get(expert_uuid_str) if expert_uuid_str is not None else None
+
+            if user_model is None:
+                raise ValueError(f"Пользователь с UUID {user_uuid_str} не найден в микросервисе")
+
+            state_claim_model = StateClaimModel(
+                id=entity.state_claim.id,
+                name=entity.state_claim.name,
+                description=entity.state_claim.description,
+            )
+
+            object_model = await self.__object_repo.get_by_uuid(str(entity.uuid_object)) if entity.uuid_object else None
+
+            result.append(
+                GetTechnicalProposals(
+                    uuid=entity.uuid,
+                    name=entity.name,
+                    offer=entity.offer,
+                    additional_material=entity.additional_material,
+                    comment=entity.comment,
+                    id_state_claim=entity.id_state_claim,
+                    state_claim=state_claim_model,
+                    user=user_model,
+                    expert=expert_model,
+                    object=object_model,
+                )
+            )
+
+        return result
 
     async def add(self,
                   user: UserGet,
                   model: PostTechnicalProposals):
 
         state_claim = await self.__claim_repo.get_state_claim_by_name("under_consideration")
-        user = await self.__user_repo.get_user_by_uuid(user.uuid)
-        object_model = await self.__object_repo.get_by_uuid(model.uuid_object)
 
         entity = TechnicalProposals(
             id_state_claim=state_claim.id,
-            id_object=object_model.id,
-            id_user=user.id,
+            uuid_object=model.uuid_object,
+            user_uuid=user.uuid,
             offer=model.offer,
             additional_material=model.additional_material,
-            name=model.name
+            name=model.name,
         )
         await self.__proposals_repo.add(entity)
-        return GetTechnicalProposals.model_validate(entity, from_attributes=True)
+
+        user_model = await self.__user_repo.get_user_by_uuid(str(user.uuid))
+        if user_model is None:
+            raise ValueError(f"Пользователь с UUID {user.uuid} не найден в микросервисе")
+
+        state_claim_model = StateClaimModel(
+            id=entity.state_claim.id,
+            name=entity.state_claim.name,
+            description=entity.state_claim.description,
+        )
+        object_resp = await self.__object_repo.get_by_uuid(model.uuid_object)
+
+        return GetTechnicalProposals(
+            uuid=entity.uuid,
+            name=entity.name,
+            offer=entity.offer,
+            additional_material=entity.additional_material,
+            comment=entity.comment,
+            id_state_claim=entity.id_state_claim,
+            state_claim=state_claim_model,
+            user=user_model,
+            expert=None,
+            object=object_resp,
+        )
 
     async def get(self, uuid_entity: str) -> GetTechnicalProposals | None:
         entity = await self.__proposals_repo.get_by_uuid(uuid_entity)
         if entity is None:
             return None
-        return GetTechnicalProposals.model_validate(entity, from_attributes=True)
+        # Подгружаем пользователя и эксперта из микросервиса
+        user_uuid_str = str(entity.user_uuid) if entity.user_uuid is not None else None
+        expert_uuid_str = str(entity.expert_uuid) if entity.expert_uuid is not None else None
+
+        all_uuids = [u for u in [user_uuid_str, expert_uuid_str] if u is not None]
+        users = await self.__user_repo.get_users_by_uuids(all_uuids)
+        users_by_uuid = {str(u.uuid): u for u in users}
+
+        user_model = users_by_uuid.get(user_uuid_str) if user_uuid_str is not None else None
+        expert_model = users_by_uuid.get(expert_uuid_str) if expert_uuid_str is not None else None
+
+        if user_model is None:
+            raise ValueError(f"Пользователь с UUID {user_uuid_str} не найден в микросервисе")
+
+        state_claim_model = StateClaimModel(
+            id=entity.state_claim.id,
+            name=entity.state_claim.name,
+            description=entity.state_claim.description,
+        )
+        object_model = await self.__object_repo.get_by_uuid(str(entity.uuid_object)) if entity.uuid_object else None
+
+        return GetTechnicalProposals(
+            uuid=entity.uuid,
+            name=entity.name,
+            offer=entity.offer,
+            additional_material=entity.additional_material,
+            comment=entity.comment,
+            id_state_claim=entity.id_state_claim,
+            state_claim=state_claim_model,
+            user=user_model,
+            expert=expert_model,
+            object=object_model,
+        )
 
     async def delete(self, uuid: str):
         entity = await self.__proposals_repo.get_by_uuid(uuid)
@@ -97,9 +202,8 @@ class ProposalsService:
                      uuid: str,
                      entity_model: UpdateTechnicalProposals):
         entity = await self.__proposals_repo.get_by_uuid(uuid)
-        user = await self.__user_repo.get_user_by_uuid(uuid_user)
 
-        entity.id_expert = user.id
+        entity.expert_uuid = uuid_user
         entity.comment = entity_model.comment
         if entity_model.is_agree:
             state_claim_model = await self.__claim_repo.get_state_claim_by_name("accepted")

@@ -21,7 +21,7 @@ class GetTechnicalProposals(BaseTechnicalProposals):
     state_claim: StateClaimModel
     user: UserGet
     expert: UserGet | None
-    object: GetObject
+    object: GetObject | None = None  # подгружается из микросервиса по uuid_object
 
     @field_serializer("uuid")
     def serialize_uuid(self, uuid: UUID4, _info):

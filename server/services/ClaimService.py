@@ -1,9 +1,19 @@
 from fastapi import Depends, UploadFile
-from ..models.Claim import *
+from ..models.Claim import GetClaim, PostClaim, UpdateClaim, StateClaimModel
+from ..models.Accident import GetAccident, StateAccidentModel, TimeLine
+from ..models.User import UserGet
+from ..models.Event import GetEvent
 
 from ..tables import StateClaim, Claim
 
-from ..repositories import ClaimRepository, FileBucketRepository, UserRepository, AccidentRepository
+from ..repositories import (
+    ClaimRepository,
+    FileBucketRepository,
+    UserRepository,
+    AccidentRepository,
+    ObjectRepository,
+    EquipmentRepository,
+)
 
 from functools import partial
 
@@ -11,16 +21,95 @@ from datetime import datetime, timezone
 
 
 class ClaimServices:
-    def __init__(self,
-                 claim_repo: ClaimRepository = Depends(),
-                 user_repo: UserRepository = Depends(),
-                 accident_repo: AccidentRepository = Depends()):
+    def __init__(
+        self,
+        claim_repo: ClaimRepository = Depends(),
+        user_repo: UserRepository = Depends(),
+        accident_repo: AccidentRepository = Depends(),
+        object_repo: ObjectRepository = Depends(),
+        equipment_repo: EquipmentRepository = Depends(),
+    ):
         self.__claim_repo: ClaimRepository = claim_repo
         self.__user_repo: UserRepository = user_repo
         self.__accident_repo: AccidentRepository = accident_repo
+        self.__object_repo: ObjectRepository = object_repo
+        self.__equipment_repo: EquipmentRepository = equipment_repo
         self.__file_repo: FileBucketRepository = FileBucketRepository("document")
 
         self.__count_item: int = 20
+
+    async def _accident_orm_to_get_accident(self, accident_orm):
+        """Собирает GetAccident из ORM-аварии, подгружая object и damaged_equipment из микросервиса."""
+        uuid_object = str(accident_orm.uuid_object) if accident_orm.uuid_object else ""
+        object_model = await self.__object_repo.get_by_uuid(uuid_object) if uuid_object else None
+
+        equipment_uuids = [
+            str(e.uuid_equipment)
+            for e in (accident_orm.damaged_equipment or [])
+            if getattr(e, "uuid_equipment", None)
+        ]
+        damaged_equipment = (
+            await self.__equipment_repo.get_equipment_by_uuid_set(equipment_uuids)
+            if equipment_uuids
+            else []
+        )
+
+        state_accident = None
+        if accident_orm.state_accident:
+            state_accident = StateAccidentModel(
+                id=accident_orm.state_accident.id,
+                name=accident_orm.state_accident.name,
+                description=accident_orm.state_accident.description,
+            )
+
+        signs_accident = None
+        if accident_orm.signs_accident:
+            from ..models.Accident import SignsAccident as SignsAccidentModel
+            signs_accident = [
+                SignsAccidentModel(id=s.id, name=s.name, code=s.code)
+                for s in accident_orm.signs_accident
+            ]
+
+        type_brakes = []
+        if accident_orm.type_brakes:
+            from ..models.Accident import GetTypeBrake, ClassBrake
+            type_brakes = [
+                GetTypeBrake(
+                    id=tb.id,
+                    name=tb.name,
+                    code=tb.code,
+                    id_type=tb.id_type,
+                    type=ClassBrake(
+                        id=tb.type.id,
+                        name=tb.type.name,
+                        description=tb.type.description,
+                    ),
+                )
+                for tb in accident_orm.type_brakes
+            ]
+
+        events = []
+        if getattr(accident_orm, "event", None):
+            events = [GetEvent.model_validate(e, from_attributes=True) for e in accident_orm.event]
+
+        return GetAccident(
+            uuid=accident_orm.uuid,
+            uuid_object=uuid_object,
+            object=object_model,
+            state_accident=state_accident,
+            signs_accident=signs_accident or [],
+            damaged_equipment=damaged_equipment,
+            type_brakes=type_brakes,
+            time_line=accident_orm.time_line or {},
+            causes_of_the_emergency=accident_orm.causes_of_the_emergency or "",
+            damaged_equipment_material=accident_orm.damaged_equipment_material or "",
+            event=events,
+            id_state_accident=accident_orm.id_state_accident,
+            datetime_start=accident_orm.datetime_start,
+            datetime_end=accident_orm.datetime_end,
+            additional_material=accident_orm.additional_material,
+            time_zone=accident_orm.time_zone,
+        )
 
     @property
     def count_item(self) -> int:
@@ -104,7 +193,7 @@ class ClaimServices:
                 description=entity.state_claim.description,
             )
 
-            accident_model = GetAccident.model_validate(entity.accident, from_attributes=True)
+            accident_model = await self._accident_orm_to_get_accident(entity.accident)
 
             claims.append(
                 GetClaim(
@@ -156,7 +245,7 @@ class ClaimServices:
             description=entity.state_claim.description,
         )
 
-        accident_model = GetAccident.model_validate(entity.accident, from_attributes=True)
+        accident_model = await self._accident_orm_to_get_accident(entity.accident)
 
         return GetClaim(
             uuid=entity.uuid,

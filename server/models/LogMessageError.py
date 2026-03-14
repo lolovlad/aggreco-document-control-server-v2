@@ -13,8 +13,8 @@ class BaseLogMessageError(BaseModel):
 
 class GetLogMessageError(BaseLogMessageError):
     uuid: UUID4
-    id_object: int
-    id_equipment: int | None
+    uuid_object: str | None
+    uuid_equipment: str | None
     is_processed: bool
 
     @field_serializer("uuid")
@@ -23,6 +23,6 @@ class GetLogMessageError(BaseLogMessageError):
 
 
 class PostLogMessageError(BaseLogMessageError):
-    id_object: int
-    id_equipment: int | None
+    uuid_object: str
+    uuid_equipment: str | None
     is_processed: bool = False

@@ -46,71 +46,6 @@ class UserToDocument(base):
     datetime_view = Column(DateTime, default=datetime.now())
 
 
-class StateObject(base):
-    __tablename__ = "state_object"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    name = Column(String(255), nullable=False, unique=True)
-    description = Column(String(128), nullable=True)
-
-
-class TypeEquipment(base):
-    __tablename__ = "type_equipment"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    code = Column(String, unique=True, nullable=False)
-    name = Column(String(255), nullable=False, unique=True)
-    description = Column(String(128), nullable=True)
-
-
-class Region(base):
-    __tablename__ = "region"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    name = Column(String(255), nullable=False, unique=True)
-    code = Column(String(128), nullable=False, unique=True)
-
-
-class Object(base):
-    __tablename__ = "object"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
-    name = Column(String(256), nullable=False)
-    address = Column(String(256), nullable=False)
-
-    id_region = Column(ForeignKey("region.id"), nullable=True)
-    region = relationship("Region", lazy="joined")
-
-    cx = Column(Float, nullable=True, default=0.0)
-    cy = Column(Float, nullable=True, default=0.0)
-    description = Column(Text, nullable=True)
-    counterparty = Column(String(256), nullable=False)
-    id_state = Column(ForeignKey("state_object.id"))
-    state = relationship("StateObject", lazy="joined")
-    equipment = relationship("Equipment", cascade="all, delete")
-
-    is_deleted = Column(Boolean, nullable=True, default=False)
-    settings = Column(MutableDict.as_mutable(JSONB), nullable=True, default={}, server_default="{}")
-
-
-class Equipment(base):
-    __tablename__ = "equipment"
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
-    id_object = Column(ForeignKey("object.id"))
-    name = Column(String(256), nullable=False)
-    code = Column(String, nullable=True)
-    id_type = Column(ForeignKey("type_equipment.id"))
-    type = relationship("TypeEquipment", lazy="joined")
-    description = Column(Text, nullable=True)
-    characteristics = Column(JSONB, nullable=True)
-
-    is_delite = Column(Boolean, default=False, nullable=True, server_default="False")
-
-
-class ObjectToUser(base):
-    __tablename__ = "object_to_user"
-    id_object = Column(ForeignKey("object.id"), primary_key=True)
-    user_uuid = Column(UUID(as_uuid=True), primary_key=True)
-
-
 class ClassBrake(base):
     __tablename__ = "class_brake"
     id = Column(Integer, autoincrement=True, primary_key=True)
@@ -178,12 +113,13 @@ class Accident(DeleteMixin, base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
 
-    id_object = Column(ForeignKey("object.id"))
-    object = relationship(Object, lazy="joined")
+    # UUID объекта (внешняя сущность в микросервисе Object & Equipment)
+    uuid_object = Column(UUID(as_uuid=True), nullable=True)
 
     signs_accident = relationship(SignsAccident, secondary="signs_accident_to_accident", lazy="joined")
 
-    damaged_equipment = relationship(Equipment, secondary="equipment_to_accident", lazy="joined")
+    # Список связей с оборудованием по UUID (через таблицу equipment_to_accident)
+    damaged_equipment = relationship("EquipmentToAccident", lazy="joined")
 
     datetime_start = Column(DateTime(timezone=False), nullable=False)
     datetime_end = Column(DateTime(timezone=False), nullable=True)
@@ -220,7 +156,7 @@ class TypeBrakeToAccident(base):
 class EquipmentToAccident(base):
     __tablename__ = "equipment_to_accident"
     id_accident = Column(ForeignKey("accident.id"), primary_key=True)
-    id_equipment = Column(ForeignKey("equipment.id"), primary_key=True)
+    uuid_equipment = Column(UUID(as_uuid=True), primary_key=True)
 
 
 class StateClaim(base):
@@ -277,8 +213,8 @@ class TechnicalProposals(base):
     id_state_claim = Column(ForeignKey("state_claim.id"))
     state_claim = relationship(StateClaim, lazy="joined")
 
-    id_object = Column(ForeignKey("object.id"))
-    object = relationship(Object, lazy="joined")
+    # UUID объекта из внешнего микросервиса
+    uuid_object = Column(UUID(as_uuid=True))
 
     # UUID пользователя и эксперта вместо локальных id
     user_uuid = Column(UUID(as_uuid=True))
@@ -300,10 +236,9 @@ class LogMessageError(base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
 
-    id_object = Column(ForeignKey("object.id"))
-    object = relationship(Object, lazy="joined")
-
-    id_equipment = Column(ForeignKey("equipment.id"), nullable=True)
+    # UUID объекта и оборудования из внешнего микросервиса
+    uuid_object = Column(UUID(as_uuid=True), nullable=True)
+    uuid_equipment = Column(UUID(as_uuid=True), nullable=True)
 
     create_at = Column(DateTime(timezone=False), nullable=False)
     
@@ -323,8 +258,9 @@ class Summarize(base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
 
-    id_object = Column(ForeignKey("object.id"))
-    id_equipment = Column(ForeignKey("equipment.id"))
+    # UUID объекта и оборудования из внешнего микросервиса
+    uuid_object = Column(UUID(as_uuid=True), nullable=True)
+    uuid_equipment = Column(UUID(as_uuid=True), nullable=True)
     text = Column(Text, nullable=False)
 
     datetime_start = Column(DateTime(timezone=False), nullable=False)

@@ -1,12 +1,20 @@
 from fastapi import Depends, UploadFile
-from ..models.Accident import *
+from ..models.Accident import (
+    GetAccident,
+    StateAccidentModel,
+    TimeLine,
+    PostAccident,
+    UpdateAccident,
+    GetLightweightAccident,
+    FileAccident,
+)
 from ..models.Event import *
 from ..models.User import UserGet
 from ..tables import Accident, Event
 
 from ..repositories import AccidentRepository, TypeBrakeRepository, ObjectRepository, EquipmentRepository, EventRepository
 
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from urllib.parse import urlparse
 from ..settings import settings
@@ -52,13 +60,10 @@ class AccidentService:
         return accident
 
     async def add_accident(self, accident: PostAccident, time_zone: str) -> Accident:
-        obj = await self.__object_repo.get_by_uuid(accident.object)
-        equipments = await self.__equipment_repo.get_equipment_by_uuid_set(accident.equipments)
-
         state_accident = await self.__accident_repo.get_state_accident_by_name("empty")
 
         entity = Accident(
-            id_object=obj.id,
+            uuid_object=UUID(accident.object) if isinstance(accident.object, str) else accident.object,
             datetime_start=accident.datetime_start.replace(tzinfo=None),
             datetime_end=accident.datetime_end.replace(tzinfo=None) if accident.datetime_end is not None else None,
             time_line={},
@@ -66,18 +71,90 @@ class AccidentService:
             damaged_equipment_material="Нет",
             additional_material="Нет",
             id_state_accident=state_accident.id,
-            time_zone=time_zone
+            time_zone=time_zone,
         )
-        entity.damaged_equipment.extend(equipments)
-
         await self.__accident_repo.add(entity)
+        if accident.equipments:
+            await self.__accident_repo.add_equipment_links(entity.id, accident.equipments)
         return entity
+
+    async def _accident_orm_to_get_accident(self, accident_orm: Accident) -> GetAccident:
+        """Собирает GetAccident из ORM-аварии, подгружая object и damaged_equipment из микросервиса."""
+        uuid_object = str(accident_orm.uuid_object) if accident_orm.uuid_object else ""
+        object_model = await self.__object_repo.get_by_uuid(uuid_object) if uuid_object else None
+
+        equipment_uuids = [
+            str(e.uuid_equipment)
+            for e in (accident_orm.damaged_equipment or [])
+            if getattr(e, "uuid_equipment", None)
+        ]
+        damaged_equipment = (
+            await self.__equipment_repo.get_equipment_by_uuid_set(equipment_uuids)
+            if equipment_uuids
+            else []
+        )
+
+        state_accident = None
+        if accident_orm.state_accident:
+            state_accident = StateAccidentModel(
+                id=accident_orm.state_accident.id,
+                name=accident_orm.state_accident.name,
+                description=accident_orm.state_accident.description,
+            )
+
+        from ..models.Accident import SignsAccident as SignsAccidentModel, GetTypeBrake, ClassBrake
+        signs_accident = []
+        if accident_orm.signs_accident:
+            signs_accident = [
+                SignsAccidentModel(id=s.id, name=s.name, code=s.code)
+                for s in accident_orm.signs_accident
+            ]
+
+        type_brakes = []
+        if accident_orm.type_brakes:
+            type_brakes = [
+                GetTypeBrake(
+                    id=tb.id,
+                    name=tb.name,
+                    code=tb.code,
+                    id_type=tb.id_type,
+                    type=ClassBrake(
+                        id=tb.type.id,
+                        name=tb.type.name,
+                        description=tb.type.description,
+                    ),
+                )
+                for tb in accident_orm.type_brakes
+            ]
+
+        events = []
+        if getattr(accident_orm, "event", None):
+            events = [GetEvent.model_validate(e, from_attributes=True) for e in accident_orm.event]
+
+        return GetAccident(
+            uuid=accident_orm.uuid,
+            uuid_object=uuid_object,
+            object=object_model,
+            state_accident=state_accident,
+            signs_accident=signs_accident,
+            damaged_equipment=damaged_equipment,
+            type_brakes=type_brakes,
+            time_line=accident_orm.time_line or {},
+            causes_of_the_emergency=accident_orm.causes_of_the_emergency or "",
+            damaged_equipment_material=accident_orm.damaged_equipment_material or "",
+            event=events,
+            id_state_accident=accident_orm.id_state_accident,
+            datetime_start=accident_orm.datetime_start,
+            datetime_end=accident_orm.datetime_end,
+            additional_material=accident_orm.additional_material,
+            time_zone=accident_orm.time_zone,
+        )
 
     async def get_one(self, uuid_accident: str) -> GetAccident | None:
         entity = await self.__accident_repo.get_by_uuid(uuid_accident)
         if entity is None:
             return None
-        return GetAccident.model_validate(entity, from_attributes=True)
+        return await self._accident_orm_to_get_accident(entity)
 
     async def update_accident(self,
                               uuid_accident: str,
@@ -86,15 +163,12 @@ class AccidentService:
                               state_accident: str | None = "empty"):
 
         entity = await self.__accident_repo.get_by_uuid(uuid_accident)
-        entity.damaged_equipment = []
         entity.type_brakes = []
         entity.signs_accident = []
         await self.__accident_repo.update(entity)
 
-        object = await self.__object_repo.get_by_uuid(target.uuid_object)
-        equipments = await self.__equipment_repo.get_equipment_by_uuid_set(target.equipments)
-        types_brake = await self.__type_brake_repo.get_brakes_by_uuid_set(target.type_brakes)
-        signs_accident = await self.__accident_repo.get_signs_accident_by_id_set(target.signs_accident)
+        types_brake = await self.__type_brake_repo.get_brakes_by_uuid_set(target.type_brakes or [])
+        signs_accident = await self.__accident_repo.get_signs_accident_by_id_set(target.signs_accident or [])
 
         if user.type.name == "admin":
             state_accident_obj = await self.__accident_repo.get_state_accident_by_name("empty")
@@ -103,8 +177,10 @@ class AccidentService:
         else:
             state_accident_obj = await self.__accident_repo.get_state_accident_by_name("empty")
 
-        entity.id_object = object.id
-        entity.damaged_equipment = equipments
+        entity.uuid_object = UUID(target.uuid_object) if isinstance(target.uuid_object, str) else target.uuid_object
+        print(*target.equipments)
+        if target.equipments is not None:
+            await self.__accident_repo.replace_equipment_links(entity.id, target.equipments, accident_entity=entity)
         entity.datetime_start = target.datetime_start.replace(tzinfo=None)
         entity.datetime_end = target.datetime_end.replace(tzinfo=None) if target.datetime_end is not None else None
         entity.type_brakes = types_brake
@@ -254,8 +330,10 @@ class AccidentService:
     async def add_file_accident(self, uuid_accident: str, file: UploadFile):
 
         accident = await self.__accident_repo.get_by_uuid(uuid_accident)
+        obj = await self.__object_repo.get_by_uuid(str(accident.uuid_object)) if accident.uuid_object else None
+        dir_name = (obj.name if obj else str(accident.uuid_object))
 
-        start_path = Path(Path(__path__).absolute(), settings.static_file, accident.object.name)
+        start_path = Path(Path(__path__).absolute(), settings.static_file, dir_name)
         if not path.isdir(Path(start_path)):
             mkdir(start_path)
 
@@ -274,8 +352,9 @@ class AccidentService:
 
     async def delete_file(self, uuid_accident: str, name_file: str):
         accident = await self.__accident_repo.get_by_uuid(uuid_accident)
-
-        remove(Path(Path(__path__), settings.static_file, accident.object.name, uuid_accident, name_file))
+        obj = await self.__object_repo.get_by_uuid(str(accident.uuid_object)) if accident.uuid_object else None
+        dir_name = (obj.name if obj else str(accident.uuid_object))
+        remove(Path(Path(__path__), settings.static_file, dir_name, uuid_accident, name_file))
 
     async def delete_accident(self, uuid_accident: str):
         accident = await self.__accident_repo.get_by_uuid(uuid_accident)

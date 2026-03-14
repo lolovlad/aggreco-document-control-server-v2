@@ -34,6 +34,14 @@ class StatisticService:
         self.__object_repo: ObjectRepository = object_repo
         self.__type_brake_repo: TypeBrakeRepository = type_brake_repo
 
+    async def _resolve_object_names(self, uuid_list: List[str]) -> dict[str, str]:
+        """Возвращает словарь uuid -> имя объекта (из микросервиса) или uuid как fallback."""
+        result: dict[str, str] = {}
+        for u in uuid_list:
+            obj = await self.__object_repo.get_by_uuid(u)
+            result[u] = obj.name if obj else u
+        return result
+
     async def __get_table_accident_all(self) -> dict:
         list_obj = await self.__object_repo.get_all_uuid_obj()
         list_type = await self.__type_brake_repo.get_all_class_brake()
@@ -115,11 +123,12 @@ class StatisticService:
             sort_order=sort_order_value
         )
 
-        # Формируем список статистики по объектам (название уже есть в результате запроса)
+        unique_uuids = list({str(stat.object_uuid) for stat in statistics})
+        name_by_uuid = await self._resolve_object_names(unique_uuids)
         objects_statistic = [
             ObjectStatistic(
                 object_uuid=str(stat.object_uuid),
-                object_name=stat.object_name or "",
+                object_name=name_by_uuid.get(str(stat.object_uuid), str(stat.object_uuid)),
                 claim_count=stat.claim_count
             )
             for stat in statistics
@@ -177,17 +186,17 @@ class StatisticService:
             sort_order=sort_order_value
         )
 
-        # Группируем результаты по месяцам
+        unique_uuids = list({str(stat.object_uuid) for stat in statistics})
+        name_by_uuid = await self._resolve_object_names(unique_uuids)
         months_dict = {}
         for stat in statistics:
             month = stat.month
             if month not in months_dict:
                 months_dict[month] = []
-            
             months_dict[month].append(
                 ObjectStatistic(
                     object_uuid=str(stat.object_uuid),
-                    object_name=stat.object_name or "",
+                    object_name=name_by_uuid.get(str(stat.object_uuid), str(stat.object_uuid)),
                     claim_count=stat.claim_count
                 )
             )
@@ -244,10 +253,12 @@ class StatisticService:
             sort_order=sort_order_value,
         )
 
+        unique_uuids = list({str(stat.object_uuid) for stat in statistics})
+        name_by_uuid = await self._resolve_object_names(unique_uuids)
         items = [
             ClassBrakeStatisticItem(
                 object_uuid=str(stat.object_uuid),
-                object_name=stat.object_name or "",
+                object_name=name_by_uuid.get(str(stat.object_uuid), str(stat.object_uuid)),
                 class_brake_id=stat.class_brake_id,
                 class_brake_name=stat.class_brake_name or "",
                 claim_count=stat.claim_count,
@@ -301,10 +312,12 @@ class StatisticService:
             sort_order=sort_order_value,
         )
 
+        unique_uuids = list({str(stat.object_uuid) for stat in statistics})
+        name_by_uuid = await self._resolve_object_names(unique_uuids)
         items = [
             TypeBrakeStatisticItem(
                 object_uuid=str(stat.object_uuid),
-                object_name=stat.object_name or "",
+                object_name=name_by_uuid.get(str(stat.object_uuid), str(stat.object_uuid)),
                 type_brake_id=stat.type_brake_id,
                 type_brake_name=stat.type_brake_name or "",
                 class_brake_id=stat.class_brake_id,
@@ -360,11 +373,13 @@ class StatisticService:
             sort_order=sort_order_value,
         )
 
+        unique_uuids = list({str(stat.object_uuid) for stat in statistics})
+        name_by_uuid = await self._resolve_object_names(unique_uuids)
         items = [
             MonthClassBrakeStatisticItem(
                 month=stat.month,
                 object_uuid=str(stat.object_uuid),
-                object_name=stat.object_name or "",
+                object_name=name_by_uuid.get(str(stat.object_uuid), str(stat.object_uuid)),
                 class_brake_id=stat.class_brake_id,
                 class_brake_name=stat.class_brake_name or "",
                 claim_count=stat.claim_count,
@@ -514,6 +529,9 @@ class StatisticService:
             list_object=list_object_uuid,
         )
 
+        unique_object_uuids = list({str(row.object_name) for row in export_data if row.object_name is not None})
+        export_name_by_uuid = await self._resolve_object_names(unique_object_uuids)
+
         # Словарь для кэширования equipment и signs по accident_id
         equipment_cache = {}
         signs_cache = {}
@@ -585,8 +603,8 @@ class StatisticService:
                 row.accident_damaged_equipment or "",
                 row.accident_additional_material or "",
                 "Да" if row.accident_is_deleted else "Нет",
-                # Object
-                row.object_name or "",
+                # Object (имя из микросервиса или UUID как fallback)
+                export_name_by_uuid.get(str(row.object_name), str(row.object_name) if row.object_name else ""),
                 # TypeBrake
                 row.type_brake_code or "",
                 row.type_brake_name or "",

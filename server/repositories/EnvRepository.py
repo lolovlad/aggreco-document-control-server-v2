@@ -31,45 +31,6 @@ class EnvRepository:
                 await self.__session.rollback()
                 return False
 
-    async def add_type_equipment(self, type_equipment: TypeEquipment) -> TypeEquipment | None:
-        try:
-            self.__session.add(type_equipment)
-            await self.__session.commit()
-            return type_equipment
-        except:
-            await self.__session.rollback()
-            return None
-
-    async def get_all_type_equip(self) -> list[TypeEquipment]:
-        response = select(TypeEquipment)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
-    async def add_list_type_equipment(self, type_equ: list[TypeEquipment]):
-        try:
-            self.__session.add_all(type_equ)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
-
-    async def get_all_state_object(self) -> list[StateObject]:
-        response = select(StateObject)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
-    async def get_all_region(self) -> list[Region]:
-        response = select(Region)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
-
-    async def add_list_region(self, regions: list[Region]):
-        try:
-            self.__session.add_all(regions)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
 
     async def get_all_signs_accident(self) -> list[SignsAccident]:
         response = select(SignsAccident)

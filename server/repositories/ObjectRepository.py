@@ -1,155 +1,252 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from typing import List, Tuple
 
-from fastapi import Depends
+import httpx
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from httpx import AsyncClient
 
-from ..tables import Object, ObjectToUser, Equipment
-from ..database import get_session
+from ..models.Object import GetObject, PostObject, UpdateObject
+from ..response import get_client
+from ..settings import settings
+
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/users/v1/login/sign-in/",
+)
 
 
 class ObjectRepository:
-    def __init__(self, session: AsyncSession = Depends(get_session)):
-        self.__session: AsyncSession = session
+    """
+    Репозиторий-адаптер к микросервису Object & Equipment.
+    Полностью заменяет прямую работу с локальными таблицами Object/ObjectToUser.
+    """
+
+    def __init__(
+        self,
+        client: AsyncClient = Depends(get_client),
+        token: str = Depends(oauth2_scheme),
+    ):
+        self._client: AsyncClient = client
+        self._base_url = settings.object_equipment_service_url.rstrip("/")
+        self._token: str = token
+
+    def _auth_headers(self) -> dict:
+        return {"Authorization": f"Bearer {self._token}"}
 
     async def count_row(self) -> int:
-        response = select(func.count(Object.id))
-        result = await self.__session.execute(response)
-        return result.scalars().first()
+        """
+        Возвращает количество объектов.
+        Реализовано через получение полного списка (предполагается умеренный размер справочника).
+        """
+        objects = await self.get_all_object(filter_user=None)
+        return len(objects)
 
-    async def get_limit_object(self, start: int, count: int) -> list[Object]:
-        response = select(Object).where(Object.is_deleted == False).offset(start).fetch(count).order_by(Object.id)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
+    async def get_limit_object(self, start: int, count: int) -> List[GetObject]:
+        """
+        Пагинация объектов на основе эндпоинта /v1/object/page.
+        """
+        page = start // count + 1
+        resp = await self._client.get(
+            f"{self._base_url}/v1/object/page",
+            params={"page": page, "per_item_page": count},
+            headers=self._auth_headers(),
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
+            )
+        resp.raise_for_status()
+        data = resp.json()
+        return [GetObject.model_validate(item) for item in data]
 
-    async def get_all_object(self, filter_user: str | None) -> list[Object]:
+    async def get_all_object(self, filter_user: str | None) -> List[GetObject]:
         """
         Возвращает список объектов.
-        Если filter_user is None – возвращаем все не удалённые объекты.
-        Иначе фильтруем по UUID пользователя через ObjectToUser.user_uuid.
+        filter_user здесь используется только как флаг:
+        - None  -> запрашиваем все объекты (для админов/экспертов)
+        - not None -> полагаемся на фильтрацию по пользователю в микросервисе.
         """
-        if filter_user is None:
-            response = select(Object).where(Object.is_deleted == False).order_by(Object.id)
-        else:
-            response = (
-                select(Object)
-                .join(ObjectToUser, Object.id == ObjectToUser.id_object)
-                .where(Object.is_deleted == False)
-                .where(ObjectToUser.user_uuid == filter_user)
+        resp = await self._client.get(
+            f"{self._base_url}/v1/object/list",
+            headers=self._auth_headers(),
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
             )
-        result = await self.__session.execute(response)
-        return result.unique().scalars().all()
+        if resp.status_code == status.HTTP_404_NOT_FOUND:
+            return []
+        resp.raise_for_status()
+        data = resp.json()
+        return [GetObject.model_validate(item) for item in data]
 
-    async def add(self, object: Object):
+    async def add(self, obj: PostObject) -> None:
+        """
+        Создание объекта через POST /v1/object.
+        """
+        resp = await self._client.post(
+            f"{self._base_url}/v1/object",
+            json=obj.model_dump(),
+            headers={**self._auth_headers(), "Content-Type": "application/json"},
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
+            )
+        resp.raise_for_status()
+
+    async def get_by_uuid(self, uuid: str) -> GetObject | None:
         try:
-            self.__session.add(object)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
+            resp = await self._client.get(
+                f"{self._base_url}/v1/object/one/{uuid}",
+                headers=self._auth_headers(),
+            )
+        except (httpx.ConnectError, httpx.RequestError):
+            # Микросервис недоступен (хост не резолвится, таймаут и т.д.) — возвращаем None
+            return None
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
+            )
+        if resp.status_code == status.HTTP_404_NOT_FOUND:
+            return None
+        resp.raise_for_status()
+        return GetObject.model_validate(resp.json())
 
-    async def get_by_uuid(self, uuid: str) -> Object | None:
-        response = select(Object).where(Object.uuid == uuid)
-        result = await self.__session.execute(response)
-        return result.scalars().first()
+    async def update(self, uuid: str, entity: UpdateObject) -> None:
+        resp = await self._client.put(
+            f"{self._base_url}/v1/object/{uuid}",
+            json=entity.model_dump(),
+            headers={**self._auth_headers(), "Content-Type": "application/json"},
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
+            )
+        resp.raise_for_status()
 
-    async def update(self, entity: Object):
-        try:
-            self.__session.add(entity)
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
-
-    async def delete(self, uuid_entity: str):
-        obj = await self.get_by_uuid(uuid_entity)
-        response = select(ObjectToUser).join(Object).where(Object.uuid == uuid_entity)
-        result = await self.__session.execute(response)
-        staff = result.scalars().all()
-        try:
-            for i in staff:
-                await self.__session.delete(i)
-            obj.is_deleted = True
-            await self.update(obj)
-        except Exception:
-            await self.__session.rollback()
+    async def delete(self, uuid_entity: str) -> None:
+        resp = await self._client.delete(
+            f"{self._base_url}/v1/object/{uuid_entity}",
+            headers=self._auth_headers(),
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
+            )
+        if resp.status_code == status.HTTP_404_NOT_FOUND:
+            return
+        resp.raise_for_status()
 
     async def get_user_by_uuid_object(self, uuid: str) -> list[str]:
         """
         Возвращает список UUID пользователей, привязанных к объекту.
+        Основано на эндпоинте /v1/object/{uuid}/users.
         """
-        entity = await self.get_by_uuid(uuid)
-        response = select(ObjectToUser.user_uuid).where(ObjectToUser.id_object == entity.id)
-        result = await self.__session.execute(response)
-        return [str(u) for u in result.scalars().all()]
+        resp = await self._client.get(
+            f"{self._base_url}/v1/object/{uuid}/users",
+            headers=self._auth_headers(),
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
+            )
+        if resp.status_code == status.HTTP_404_NOT_FOUND:
+            return []
+        resp.raise_for_status()
+        data = resp.json()
+        # Модель UserGet находится в user-сервисе; здесь возвращаем только UUID.
+        return [str(item.get("uuid")) for item in data if item.get("uuid") is not None]
 
     async def unique_object_to_user(self, uuid_object: str, uuid_user: str) -> bool:
-        response = (
-            select(ObjectToUser)
-            .join(Object, Object.id == ObjectToUser.id_object)
-            .where(Object.uuid == uuid_object)
-            .where(ObjectToUser.user_uuid == uuid_user)
-        )
-        result = await self.__session.execute(response)
-        entity = result.scalars().first()
-        return entity is None
+        """
+        Проверка, что пользователь ещё не привязан к объекту.
+        Реализовано через чтение текущих пользователей объекта.
+        """
+        users = await self.get_user_by_uuid_object(uuid_object)
+        return uuid_user not in users
 
-    async def add_user_to_object(self, obj: Object, user_uuid: str):
-        try:
-            self.__session.add(
-                ObjectToUser(
-                    id_object=obj.id,
-                    user_uuid=user_uuid,
-                )
+    async def add_user_to_object(self, uuid_object: str, user_uuid: str) -> None:
+        resp = await self._client.post(
+            f"{self._base_url}/v1/object/{uuid_object}/user/{user_uuid}",
+            headers=self._auth_headers(),
+        )
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
             )
-            await self.__session.commit()
-        except:
-            await self.__session.rollback()
-            raise Exception
+        # 200 и 201 считаем успешными (см. контракт)
+        if resp.status_code not in (status.HTTP_200_OK, status.HTTP_201_CREATED):
+            resp.raise_for_status()
 
-    async def delete_user_to_object(self, uuid_object: str, uuid_user: str):
-        response = (
-            select(ObjectToUser)
-            .join(Object, Object.id == ObjectToUser.id_object)
-            .where(Object.uuid == uuid_object)
-            .where(ObjectToUser.user_uuid == uuid_user)
+    async def delete_user_to_object(self, uuid_object: str, uuid_user: str) -> None:
+        resp = await self._client.delete(
+            f"{self._base_url}/v1/object/{uuid_object}/user/{uuid_user}",
+            headers=self._auth_headers(),
         )
-        result = await self.__session.execute(response)
-        entity = result.scalars().first()
-        if entity is None:
-            raise Exception
-        try:
-            await self.__session.delete(entity)
-            await self.__session.commit()
-        except Exception:
-            await self.__session.rollback()
+        if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Unauthorized in object-equipment service",
+            )
+        if resp.status_code == status.HTTP_404_NOT_FOUND:
+            return
+        resp.raise_for_status()
 
-    async def get_all_uuid_obj(self) -> list:
-        response = select(Object.uuid, Object.name)
-        result = await self.__session.execute(response)
-        return result.fetchall()
+    async def get_all_uuid_obj(self) -> List[Tuple[str, str]]:
+        """
+        Возвращает список (uuid, name) для всех объектов.
+        Использует /v1/object/list.
+        """
+        objects = await self.get_all_object(filter_user=None)
+        return [(str(obj.uuid), obj.name) for obj in objects]
 
-    async def get_registrate_user_by_object(self, user_uuid: str):
-        response = select(ObjectToUser).where(ObjectToUser.user_uuid == user_uuid)
-        result = await self.__session.execute(response)
-        return result.scalars().all()
+    async def get_object_by_user_uuid(self, uuid_user: str) -> List[GetObject] | None:
+        """
+        Для конечного пользователя микросервис уже сам фильтрует объекты по пользователю
+        на эндпоинте /v1/object/list, поэтому здесь просто возвращаем этот список.
+        """
+        objects = await self.get_all_object(filter_user=uuid_user)
+        return objects or None
 
-    async def get_object_by_user_uuid(self, uuid_user: str) -> list[Object] | None:
-        response = (
-            select(Object)
-            .join(ObjectToUser, Object.id == ObjectToUser.id_object)
-            .where(ObjectToUser.user_uuid == uuid_user)
-        )
-        result = await self.__session.execute(response)
-        return result.scalars().all()
+    async def get_object_by_uuid_equipment(self, uuid_user: str, uuid_equipment: str) -> GetObject | None:
+        """
+        Приближённый аналог старой логики:
+        - получаем все объекты пользователя
+        - для каждого объекта загружаем его оборудование и ищем uuid_equipment.
+        """
+        from ..models.Equipment import GetEquipment  # локальный импорт, чтобы избежать циклов
 
-    async def get_object_by_uuid_equipment(self, uuid_user: str, uuid_equipment: str) -> Object | None:
-        response = (
-            select(Object)
-            .join(Equipment)
-            .where(Equipment.uuid == uuid_equipment)
-            .where(Equipment.is_delite == False)
-            .join(ObjectToUser, Object.id == ObjectToUser.id_object)
-            .where(ObjectToUser.user_uuid == uuid_user)
-        )
-        result = await self.__session.execute(response)
-        return result.scalars().first()
+        # Получаем объекты, доступные пользователю
+        objects = await self.get_object_by_user_uuid(uuid_user)
+        if not objects:
+            return None
+
+        # Для каждого объекта проверяем наличие оборудования
+        for obj in objects:
+            resp = await self._client.get(
+                f"{self._base_url}/v1/object/{obj.uuid}/equipment/list",
+                headers=self._auth_headers(),
+            )
+            if resp.status_code == status.HTTP_401_UNAUTHORIZED:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Unauthorized in object-equipment service",
+                )
+            if resp.status_code == status.HTTP_404_NOT_FOUND:
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            equipment_list = [GetEquipment.model_validate(item) for item in data]
+            if any(str(e.uuid) == uuid_equipment for e in equipment_list):
+                return obj
+
+        return None

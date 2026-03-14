@@ -17,7 +17,7 @@ from ..repositories.LogMessageErrorRepository import LogMessageErrorRepository
 from ..repositories.SummarizeRepository import SummarizeRepository
 from ..repositories.EquipmentRepository import EquipmentRepository
 from ..repositories.ObjectRepository import ObjectRepository
-from ..tables import LogMessageError, Summarize, Object, Equipment
+from ..tables import LogMessageError, Summarize
 from ..settings import settings
 
 

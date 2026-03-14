@@ -1,50 +1,54 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, distinct
+from datetime import datetime
 
 from fastapi import Depends
+from sqlalchemy import select, func, distinct
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..tables import TechnicalProposals, StateClaim, Object
 from ..database import get_session
-
-from datetime import datetime
+from ..tables import TechnicalProposals, StateClaim
 
 
 class ProposalsRepository:
+    """
+    Репозиторий технических предложений.
+    Фильтрация по объекту идёт по полю uuid_object (UUID из микросервиса), без JOIN к таблице object.
+    """
+
     def __init__(self, session: AsyncSession = Depends(get_session)):
         self.__session: AsyncSession = session
 
-    async def count_row(self,
-                        uuid_user: str | None,
-                        uuid_object: str,
-                        id_state_claim: int) -> int:
-        response = (
-            select(func.count(distinct(TechnicalProposals.id)))
-            .join(Object, TechnicalProposals.id_object == Object.id)
-        )
+    async def count_row(
+        self,
+        uuid_user: str | None,
+        uuid_object: str,
+        id_state_claim: int,
+    ) -> int:
+        response = select(func.count(distinct(TechnicalProposals.id)))
         if uuid_user is not None:
             response = response.where(TechnicalProposals.user_uuid == uuid_user)
         if uuid_object != "all":
-            response = response.where(Object.uuid == uuid_object)
+            response = response.where(TechnicalProposals.uuid_object == uuid_object)
         if id_state_claim != 0:
             response = response.where(TechnicalProposals.id_state_claim == id_state_claim)
 
         result = await self.__session.execute(response)
-        return result.scalars().first()
+        return result.scalar_one_or_none() or 0
 
-    async def get_limit(self,
-                        uuid_user: str,
-                        uuid_object: str,
-                        id_state_claim: int,
-                        start: int,
-                        count: int) -> list[TechnicalProposals]:
+    async def get_limit(
+        self,
+        uuid_user: str,
+        uuid_object: str,
+        id_state_claim: int,
+        start: int,
+        count: int,
+    ) -> list[TechnicalProposals]:
         response = (
-            select(TechnicalProposals).distinct()
-            .join(Object, TechnicalProposals.id_object == Object.id)
+            select(TechnicalProposals)
+            .distinct()
             .where(TechnicalProposals.user_uuid == uuid_user)
         )
-
         if uuid_object != "all":
-            response = response.where(Object.uuid == uuid_object)
+            response = response.where(TechnicalProposals.uuid_object == uuid_object)
         if id_state_claim != 0:
             response = response.where(TechnicalProposals.id_state_claim == id_state_claim)
 
@@ -52,17 +56,19 @@ class ProposalsRepository:
         result = await self.__session.execute(response)
         return result.scalars().unique().all()
 
-    async def get_limit_admin(self,
-                              uuid_object: str,
-                              start: int,
-                              count: int) -> list[TechnicalProposals]:
+    async def get_limit_admin(
+        self,
+        uuid_object: str,
+        start: int,
+        count: int,
+    ) -> list[TechnicalProposals]:
         response = (
-            select(TechnicalProposals).distinct()
+            select(TechnicalProposals)
+            .distinct()
             .join(StateClaim, TechnicalProposals.id_state_claim == StateClaim.id)
-            .join(Object, TechnicalProposals.id_object == Object.id)
         )
         if uuid_object != "all":
-            response = response.where(Object.uuid == uuid_object)
+            response = response.where(TechnicalProposals.uuid_object == uuid_object)
 
         response = response.order_by(TechnicalProposals.id.desc()).offset(start).fetch(count)
         result = await self.__session.execute(response)

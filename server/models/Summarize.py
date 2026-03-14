@@ -12,8 +12,8 @@ class BaseSummarize(BaseModel):
 
 class GetSummarize(BaseSummarize):
     uuid: UUID4
-    id_object: int
-    id_equipment: int
+    uuid_object: str
+    uuid_equipment: str
     datetime_start: datetime
     datetime_end: Optional[datetime] = None
     equipment: Optional[GetEquipment] = None
@@ -26,8 +26,8 @@ class GetSummarize(BaseSummarize):
 
 
 class PostSummarize(BaseSummarize):
-    id_object: int
-    id_equipment: int
+    uuid_object: str
+    uuid_equipment: str
 
 
 class AnalyzeLogsResponse(BaseModel):

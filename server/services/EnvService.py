@@ -7,9 +7,7 @@ from ..models.Accident import GetTypeBrake, SignsAccident
 from ..models.Event import TypeEvent, StateEvent
 from ..models.Claim import StateClaimModel
 
-from ..tables import (TypeEquipment as TypeEquipmentORM,
-                      Region as RegionORM,
-                      TypeBrake as TypeBrakeORM,
+from ..tables import (TypeBrake as TypeBrakeORM,
                       SignsAccident as SignsAccidentORM)
 
 from ..repositories import EnvRepository, TypeBrakeRepository
@@ -24,78 +22,6 @@ class EnvService:
                  type_brake: TypeBrakeRepository = Depends()):
         self.__env_repo: EnvRepository = env_repo
         self.__type_brake_repo: TypeBrakeRepository = type_brake
-
-    async def delete_type_equipment(self, id_type_equipment: int) -> bool:
-        is_del = await self.__env_repo.delete_type_equipment(id_type_equipment)
-        return is_del
-
-    async def import_type_equip_file(self, file: UploadFile):
-        try:
-            type_equipments = []
-            while contents := await file.read(1024 * 1024):
-                buffer = StringIO(contents.decode('utf-8-sig'))
-                csv_reader = csv.DictReader(buffer, delimiter=';')
-
-                for rows in csv_reader:
-
-                    type_equipment = TypeEquipmentORM(
-                        code=rows["code"],
-                        name=rows["name"],
-                    )
-                    type_equipments.append(type_equipment)
-
-                await self.__env_repo.add_list_type_equipment(type_equipments)
-
-        except Exception:
-            raise Exception()
-        finally:
-            await file.close()
-
-    async def get_all_type_equip(self) -> list[TypeEquipment]:
-        entity = await self.__env_repo.get_all_type_equip()
-        return [TypeEquipment.model_validate(i, from_attributes=True) for i in entity]
-
-    async def add_type_equipment(self, type_equipment: PostTypeEquipment) -> TypeEquipmentORM:
-        entity = TypeEquipmentORM(
-            name=type_equipment.name,
-            code=type_equipment.code,
-            description=type_equipment.description)
-        type_equipment = await self.__env_repo.add_type_equipment(entity)
-        return type_equipment
-
-    async def get_all_state_object(self) -> list[StateObject]:
-        entity = await self.__env_repo.get_all_state_object()
-        return [StateObject.model_validate(i, from_attributes=True) for i in entity]
-
-    async def get_all_region(self) -> list[Region]:
-        entity = await self.__env_repo.get_all_region()
-        return [Region.model_validate(i, from_attributes=True) for i in entity]
-
-    async def import_region_file(self, file: UploadFile):
-        try:
-            regions = []
-            while contents := await file.read(1024 * 1024):
-                buffer = StringIO(contents.decode('utf-8-sig'))
-                csv_reader = csv.DictReader(buffer, delimiter=';')
-
-                for rows in csv_reader:
-
-                    region = RegionORM(
-                        code=rows["code"],
-                        name=rows["name"],
-                    )
-                    regions.append(region)
-
-                await self.__env_repo.add_list_region(regions)
-
-        except Exception:
-            raise Exception()
-        finally:
-            await file.close()
-
-    async def add_region(self, name: str, code: str):
-        entity = RegionORM(name=name, code=code)
-        entity = await self.__env_repo.add(entity)
 
     async def get_all_type_brake(self, class_brake: str) -> list[GetTypeBrake] | None:
         entity = await self.__type_brake_repo.get_all_type_brake_by_class(class_brake)

@@ -9,12 +9,10 @@ from fastapi import Depends
 from ..tables import (
     Claim,
     Accident,
-    Object,
     StateClaim,
     TypeBrake,
     TypeBrakeToAccident,
     ClassBrake,
-    Equipment,
     SignsAccident,
     EquipmentToAccident,
     SignsAccidentToAccident,
@@ -57,21 +55,21 @@ class StatisticRepository:
         if end_date is not None:
             conditions.append(Claim.datetime <= end_date)
         if list_object:
-            conditions.append(Object.uuid.in_(list_object))
+            conditions.append(Accident.uuid_object.in_(list_object))
 
-        # Запрос через Claim -> Accident -> Object
+        # Запрос через Claim -> Accident, группировка по uuid объекта
         query = (
             select(
-                Object.uuid.label("object_uuid"),
-                Object.name.label("object_name"),
+                Accident.uuid_object.label("object_uuid"),
+                # object_name временно заполняем UUID объекта
+                Accident.uuid_object.label("object_name"),
                 func.count(Claim.id).label('claim_count')
             )
             .select_from(Claim)
             .join(Accident, Claim.id_accident == Accident.id)
-            .join(Object, Accident.id_object == Object.id)
             .join(StateClaim, Claim.id_state_claim == StateClaim.id)
             .where(and_(*conditions))
-            .group_by(Object.uuid, Object.name)
+            .group_by(Accident.uuid_object)
         )
 
         # Применяем сортировку
@@ -82,9 +80,9 @@ class StatisticRepository:
                 query = query.order_by(desc(func.count(Claim.id)))
         elif sort_by == "object_name":
             if sort_order == "asc":
-                query = query.order_by(asc(Object.name))
+                query = query.order_by(asc(Accident.uuid_object))
             else:
-                query = query.order_by(desc(Object.name))
+                query = query.order_by(desc(Accident.uuid_object))
 
         result = await self.__session.execute(query)
         return result.fetchall()
@@ -112,7 +110,7 @@ class StatisticRepository:
         if end_date is not None:
             conditions.append(Claim.datetime <= end_date)
         if list_object:
-            conditions.append(Object.uuid.in_(list_object))
+            conditions.append(Accident.uuid_object.in_(list_object))
 
         # Группируем по году-месяцу и объекту
         month_expr = func.to_char(Claim.datetime, 'YYYY-MM')
@@ -120,19 +118,17 @@ class StatisticRepository:
         query = (
             select(
                 month_expr.label("month"),
-                Object.uuid.label("object_uuid"),
-                Object.name.label("object_name"),
+                Accident.uuid_object.label("object_uuid"),
+                Accident.uuid_object.label("object_name"),
                 func.count(Claim.id).label('claim_count')
             )
             .select_from(Claim)
             .join(Accident, Claim.id_accident == Accident.id)
-            .join(Object, Accident.id_object == Object.id)
             .join(StateClaim, Claim.id_state_claim == StateClaim.id)
             .where(and_(*conditions))
             .group_by(
                 month_expr,
-                Object.uuid,
-                Object.name
+                Accident.uuid_object,
             )
         )
 
@@ -146,9 +142,9 @@ class StatisticRepository:
                 order_clauses.append(desc(func.count(Claim.id)))
         elif sort_by == "object_name":
             if sort_order == "asc":
-                order_clauses.append(asc(Object.name))
+                order_clauses.append(asc(Accident.uuid_object))
             else:
-                order_clauses.append(desc(Object.name))
+                order_clauses.append(desc(Accident.uuid_object))
         
         query = query.order_by(*order_clauses)
 
@@ -174,12 +170,12 @@ class StatisticRepository:
         if end_date is not None:
             conditions.append(Claim.datetime <= end_date)
         if list_object:
-            conditions.append(Object.uuid.in_(list_object))
+            conditions.append(Accident.uuid_object.in_(list_object))
 
         query = (
             select(
-                Object.uuid.label("object_uuid"),
-                Object.name.label("object_name"),
+                Accident.uuid_object.label("object_uuid"),
+                Accident.uuid_object.label("object_name"),
                 ClassBrake.id.label("class_brake_id"),
                 ClassBrake.description.label("class_brake_name"),
                 ClassBrake.description.label("class_brake_description"),
@@ -187,15 +183,13 @@ class StatisticRepository:
             )
             .select_from(Claim)
             .join(Accident, Claim.id_accident == Accident.id)
-            .join(Object, Accident.id_object == Object.id)
             .join(StateClaim, Claim.id_state_claim == StateClaim.id)
             .join(TypeBrakeToAccident, Accident.id == TypeBrakeToAccident.id_accident)
             .join(TypeBrake, TypeBrake.id == TypeBrakeToAccident.id_type_brake)
             .join(ClassBrake, ClassBrake.id == TypeBrake.id_type)
             .where(and_(*conditions))
             .group_by(
-                Object.uuid,
-                Object.name,
+                Accident.uuid_object,
                 ClassBrake.id,
                 ClassBrake.name,
             )
@@ -209,9 +203,9 @@ class StatisticRepository:
                 query = query.order_by(desc(func.count(Claim.id)))
         elif sort_by == "object_name":
             if sort_order == "asc":
-                query = query.order_by(asc(Object.name))
+                query = query.order_by(asc(Accident.uuid_object))
             else:
-                query = query.order_by(desc(Object.name))
+                query = query.order_by(desc(Accident.uuid_object))
 
         result = await self.__session.execute(query)
         return result.fetchall()
@@ -235,12 +229,12 @@ class StatisticRepository:
         if end_date is not None:
             conditions.append(Claim.datetime <= end_date)
         if list_object:
-            conditions.append(Object.uuid.in_(list_object))
+            conditions.append(Accident.uuid_object.in_(list_object))
 
         query = (
             select(
-                Object.uuid.label("object_uuid"),
-                Object.name.label("object_name"),
+                Accident.uuid_object.label("object_uuid"),
+                Accident.uuid_object.label("object_name"),
                 TypeBrake.id.label("type_brake_id"),
                 TypeBrake.name.label("type_brake_name"),
                 ClassBrake.id.label("class_brake_id"),
@@ -249,15 +243,13 @@ class StatisticRepository:
             )
             .select_from(Claim)
             .join(Accident, Claim.id_accident == Accident.id)
-            .join(Object, Accident.id_object == Object.id)
             .join(StateClaim, Claim.id_state_claim == StateClaim.id)
             .join(TypeBrakeToAccident, Accident.id == TypeBrakeToAccident.id_accident)
             .join(TypeBrake, TypeBrake.id == TypeBrakeToAccident.id_type_brake)
             .join(ClassBrake, ClassBrake.id == TypeBrake.id_type)
             .where(and_(*conditions))
             .group_by(
-                Object.uuid,
-                Object.name,
+                Accident.uuid_object,
                 TypeBrake.id,
                 TypeBrake.name,
                 ClassBrake.id,
@@ -273,9 +265,9 @@ class StatisticRepository:
                 query = query.order_by(desc(func.count(Claim.id)))
         elif sort_by == "object_name":
             if sort_order == "asc":
-                query = query.order_by(asc(Object.name))
+                query = query.order_by(asc(Accident.uuid_object))
             else:
-                query = query.order_by(desc(Object.name))
+                query = query.order_by(desc(Accident.uuid_object))
 
         result = await self.__session.execute(query)
         return result.fetchall()
@@ -300,15 +292,15 @@ class StatisticRepository:
         if end_date is not None:
             conditions.append(Claim.datetime <= end_date)
         if list_object:
-            conditions.append(Object.uuid.in_(list_object))
+            conditions.append(Accident.uuid_object.in_(list_object))
 
         month_expr = func.to_char(Claim.datetime, 'YYYY-MM')
 
         query = (
             select(
                 month_expr.label("month"),
-                Object.uuid.label("object_uuid"),
-                Object.name.label("object_name"),
+                Accident.uuid_object.label("object_uuid"),
+                Accident.uuid_object.label("object_name"),
                 ClassBrake.id.label("class_brake_id"),
                 ClassBrake.description.label("class_brake_name"),
                 ClassBrake.description.label("class_brake_description"),
@@ -316,7 +308,6 @@ class StatisticRepository:
             )
             .select_from(Claim)
             .join(Accident, Claim.id_accident == Accident.id)
-            .join(Object, Accident.id_object == Object.id)
             .join(StateClaim, Claim.id_state_claim == StateClaim.id)
             .join(TypeBrakeToAccident, Accident.id == TypeBrakeToAccident.id_accident)
             .join(TypeBrake, TypeBrake.id == TypeBrakeToAccident.id_type_brake)
@@ -324,8 +315,7 @@ class StatisticRepository:
             .where(and_(*conditions))
             .group_by(
                 month_expr,
-                Object.uuid,
-                Object.name,
+                Accident.uuid_object,
                 ClassBrake.id,
                 ClassBrake.name,
             )
@@ -340,9 +330,9 @@ class StatisticRepository:
                 order_clauses.append(desc(func.count(Claim.id)))
         elif sort_by == "object_name":
             if sort_order == "asc":
-                order_clauses.append(asc(Object.name))
+                order_clauses.append(asc(Accident.uuid_object))
             else:
-                order_clauses.append(desc(Object.name))
+                order_clauses.append(desc(Accident.uuid_object))
 
         query = query.order_by(*order_clauses)
 
@@ -366,7 +356,7 @@ class StatisticRepository:
         if end_date is not None:
             conditions.append(Claim.datetime <= end_date)
         if list_object:
-            conditions.append(Object.uuid.in_(list_object))
+            conditions.append(Accident.uuid_object.in_(list_object))
 
         # Основной запрос для получения Claim, Accident, TypeBrake, ClassBrake.
         # Данные пользователя (ФИО, email) подтягиваем из микросервиса по user_uuid.
@@ -384,8 +374,8 @@ class StatisticRepository:
                 Accident.damaged_equipment_material.label("accident_damaged_equipment"),
                 Accident.additional_material.label("accident_additional_material"),
                 Accident.is_delite.label("accident_is_deleted"),
-                # Object из Accident (только имя, без uuid)
-                Object.name.label("object_name"),
+                # Имя объекта теперь недоступно из локной БД, временно используем uuid_object
+                Accident.uuid_object.label("object_name"),
                 # TypeBrake поля (исключаем: id)
                 TypeBrake.code.label("type_brake_code"),
                 TypeBrake.name.label("type_brake_name"),
@@ -394,7 +384,6 @@ class StatisticRepository:
             )
             .select_from(Claim)
             .join(Accident, Claim.id_accident == Accident.id)
-            .join(Object, Accident.id_object == Object.id)
             .join(StateClaim, Claim.id_state_claim == StateClaim.id)
             .join(TypeBrakeToAccident, Accident.id == TypeBrakeToAccident.id_accident)
             .join(TypeBrake, TypeBrake.id == TypeBrakeToAccident.id_type_brake)
@@ -449,13 +438,12 @@ class StatisticRepository:
     async def get_accident_equipment(self, accident_id: int):
         """Получение списка оборудования для аварии"""
         query = (
-            select(Equipment.name.label("equipment_name"))
-            .select_from(Equipment)
-            .join(EquipmentToAccident, Equipment.id == EquipmentToAccident.id_equipment)
+            select(EquipmentToAccident.uuid_equipment.label("equipment_uuid"))
+            .select_from(EquipmentToAccident)
             .where(EquipmentToAccident.id_accident == accident_id)
         )
         result = await self.__session.execute(query)
-        return [row.equipment_name for row in result.fetchall()]
+        return [str(row.equipment_uuid) for row in result.fetchall()]
 
     async def get_accident_signs(self, accident_id: int):
         """Получение списка признаков для аварии"""

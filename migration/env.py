@@ -43,7 +43,8 @@ def include_object(object, name, type_, reflected, compare_to):
     """
     if type_ == "table":
         # alembic_version — служебная таблица, её из автогенерации исключаем
-        if name == "alembic_version":
+
+        if name.startswith("alembic_"):
             return False
 
         # Если таблица отражена из БД, но ей не соответствует объект в metadata,
