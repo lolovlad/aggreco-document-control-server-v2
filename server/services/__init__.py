@@ -1,6 +1,5 @@
 from .DocumentService import DocumentService
 from .LoginService import get_current_user
-from .ObjectService import ObjectService
 from .EquipmentService import EquipmentService
 from .AccidentService import AccidentService
 from .StatisticService import StatisticService
@@ -10,5 +9,5 @@ from .EnvService import EnvService
 from .EmailService import EmailService
 from .ProposalsService import ProposalsService
 from .SummarizeService import SummarizeService
-
+from .ReportService import ReportService
 

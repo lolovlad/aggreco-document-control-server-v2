@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, and_
 
 from fastapi import Depends
 
@@ -101,3 +101,25 @@ class AccidentRepository:
         stmt = select(SignsAccident).where(SignsAccident.id.in_(id_list))
         result = await self.__session.execute(stmt)
         return result.scalars().all()
+
+    async def get_accidents_between_dates(
+        self,
+        start_date,
+        end_date,
+    ) -> list[Accident]:
+        """
+        Возвращает аварии, у которых datetime_start попадает в интервал [start_date, end_date].
+        """
+        stmt = (
+            select(Accident)
+            .where(
+                and_(
+                    Accident.is_delite == False,
+                    Accident.datetime_start >= start_date,
+                    Accident.datetime_start <= end_date,
+                )
+            )
+            .order_by(Accident.datetime_start)
+        )
+        result = await self.__session.execute(stmt)
+        return result.scalars().unique().all()

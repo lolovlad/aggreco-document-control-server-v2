@@ -9,7 +9,7 @@ from ..models.Message import Message
 from ..models.User import UserGet
 from ..models.Equipment import TypeEquipment, PostTypeEquipment
 from ..models.Object import StateObject, Region, PostRegion
-from ..models.Accident import SignsAccident, GetTypeBrake
+from ..models.Accident import SignsAccident, GetTypeBrake, CodeErrorAccidentModel
 from ..models.Event import StateEvent, TypeEvent
 from ..models.Claim import StateClaimModel
 
@@ -220,6 +220,141 @@ async def import_signs_accident(file: UploadFile = File(...),
     except Exception:
         return JSONResponse(content={"message": "ошибка добавления"},
                             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@router.get(
+    "/error_code_accident",
+    response_model=list[CodeErrorAccidentModel],
+    responses={
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+        status.HTTP_404_NOT_FOUND: {"model": Message},
+    },
+)
+async def get_error_code_accident(service: EnvService = Depends()):
+    error_codes = await service.get_all_error_code_accident()
+    if error_codes is not None:
+        return error_codes
+    else:
+        return JSONResponse(
+            content={"message": "Не найдено"},
+            status_code=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@router.post(
+    "/error_code_accident",
+    responses={
+        status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+        status.HTTP_201_CREATED: {"model": Message},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    },
+)
+@access_control(["super_admin"])
+async def add_error_code_accident(
+    target: CodeErrorAccidentModel,
+    service: EnvService = Depends(),
+    current_user: UserGet = Depends(get_current_user),
+):
+    entity = await service.add_error_code_accident(target)
+    if entity is None:
+        return JSONResponse(
+            content={"message": "ошибка добавления"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    return JSONResponse(
+        content={"message": "добавлено"},
+        status_code=status.HTTP_201_CREATED,
+    )
+
+
+@router.put(
+    "/error_code_accident/{id_error}",
+    responses={
+        status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+        status.HTTP_200_OK: {"model": Message},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    },
+)
+@access_control(["super_admin"])
+async def update_error_code_accident(
+    id_error: int,
+    target: CodeErrorAccidentModel,
+    service: EnvService = Depends(),
+    current_user: UserGet = Depends(get_current_user),
+):
+    entity = await service.update_error_code_accident(id_error, target)
+    if entity is None:
+        return JSONResponse(
+            content={"message": "ошибка обновления"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    return JSONResponse(
+        content={"message": "Обновлено"},
+        status_code=status.HTTP_200_OK,
+    )
+
+
+@router.delete(
+    "/error_code_accident/{id_error}",
+    responses={
+        status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+        status.HTTP_200_OK: {"model": Message},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    },
+)
+@access_control(["super_admin"])
+async def delete_error_code_accident(
+    id_error: int,
+    service: EnvService = Depends(),
+    current_user: UserGet = Depends(get_current_user),
+):
+    ok = await service.delete_error_code_accident(id_error)
+    if ok:
+        return JSONResponse(
+            content={"message": "Удалено"},
+            status_code=status.HTTP_200_OK,
+        )
+    else:
+        return JSONResponse(
+            content={"message": "ошибка удаления"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@router.post(
+    "/error_code_accident/import_file",
+    responses={
+        status.HTTP_406_NOT_ACCEPTABLE: {"model": Message},
+        status.HTTP_201_CREATED: {"model": Message},
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": Message},
+    },
+)
+@access_control(["super_admin"])
+async def import_error_code_accident(
+    file: UploadFile = File(...),
+    service: EnvService = Depends(),
+    current_user: UserGet = Depends(get_current_user),
+):
+    try:
+        if file.content_type in ("text/csv", "application/vnd.ms-excel"):
+            await service.import_error_code_accident(file)
+        else:
+            return JSONResponse(
+                content={"message": "файл не того типа"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return JSONResponse(
+            content={"message": "добавлено"},
+            status_code=status.HTTP_201_CREATED,
+        )
+    except Exception as e:
+        # Логируем ошибку в консоль, чтобы видеть причину 500
+        print("ERROR in /env/error_code_accident/import_file:", repr(e))
+        return JSONResponse(
+            content={"message": "ошибка добавления"},
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @router.get("/type_brake_mechanical/{class_brake}", response_model=list[GetTypeBrake], responses={

@@ -1,6 +1,6 @@
 from fastapi import Depends, UploadFile
 from ..models.Claim import GetClaim, PostClaim, UpdateClaim, StateClaimModel
-from ..models.Accident import GetAccident, StateAccidentModel, TimeLine
+from ..models.Accident import GetAccident, StateAccidentModel, TimeLine, CodeErrorAccidentModel
 from ..models.User import UserGet
 from ..models.Event import GetEvent
 
@@ -92,6 +92,14 @@ class ClaimServices:
         if getattr(accident_orm, "event", None):
             events = [GetEvent.model_validate(e, from_attributes=True) for e in accident_orm.event]
 
+        error_code = None
+        if getattr(accident_orm, "error_code_accident", None):
+            error_code = CodeErrorAccidentModel(
+                id=accident_orm.error_code_accident.id,
+                name=accident_orm.error_code_accident.name,
+                description=accident_orm.error_code_accident.description,
+            )
+
         return GetAccident(
             uuid=accident_orm.uuid,
             uuid_object=uuid_object,
@@ -100,8 +108,10 @@ class ClaimServices:
             signs_accident=signs_accident or [],
             damaged_equipment=damaged_equipment,
             type_brakes=type_brakes,
+            error_code_accident=error_code,
             time_line=accident_orm.time_line or {},
             causes_of_the_emergency=accident_orm.causes_of_the_emergency or "",
+            reason_for_shutdown=accident_orm.reason_for_shutdown,
             damaged_equipment_material=accident_orm.damaged_equipment_material or "",
             event=events,
             id_state_accident=accident_orm.id_state_accident,

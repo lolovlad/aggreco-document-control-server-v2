@@ -69,6 +69,13 @@ class SignsAccident(base):
     name = Column(String, nullable=False)
 
 
+class CodeErrorAccident(base):
+    __tablename__ = "code_error_accident"
+    id = Column(Integer, autoincrement=True, primary_key=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+
+
 class StateEvent(base):
     __tablename__ = "state_event"
     id = Column(Integer, autoincrement=True, primary_key=True)
@@ -113,22 +120,22 @@ class Accident(DeleteMixin, base):
     id = Column(Integer, autoincrement=True, primary_key=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid4)
 
-    # UUID объекта (внешняя сущность в микросервисе Object & Equipment)
     uuid_object = Column(UUID(as_uuid=True), nullable=True)
 
     signs_accident = relationship(SignsAccident, secondary="signs_accident_to_accident", lazy="joined")
-
-    # Список связей с оборудованием по UUID (через таблицу equipment_to_accident)
     damaged_equipment = relationship("EquipmentToAccident", lazy="joined")
 
     datetime_start = Column(DateTime(timezone=False), nullable=False)
     datetime_end = Column(DateTime(timezone=False), nullable=True)
 
     type_brakes = relationship(TypeBrake, secondary="type_brake_to_accident", lazy="joined")
+    id_error_code_accident = Column(ForeignKey(CodeErrorAccident.id))
+    error_code_accident = relationship(CodeErrorAccident, lazy="joined")
 
     time_line = Column(MutableDict.as_mutable(JSONB), nullable=False)
 
     causes_of_the_emergency = Column(Text, nullable=False)
+    reason_for_shutdown = Column(Text, nullable=True)
     damaged_equipment_material = Column(Text, nullable=False)
 
     event = relationship(Event, back_populates="accident", lazy="joined")

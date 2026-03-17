@@ -3,12 +3,15 @@ from fastapi import Depends, UploadFile
 from ..models.User import GetTypeUser, Profession
 from ..models.Equipment import TypeEquipment, PostTypeEquipment
 from ..models.Object import StateObject, Region
-from ..models.Accident import GetTypeBrake, SignsAccident
+from ..models.Accident import GetTypeBrake, SignsAccident, CodeErrorAccidentModel
 from ..models.Event import TypeEvent, StateEvent
 from ..models.Claim import StateClaimModel
 
-from ..tables import (TypeBrake as TypeBrakeORM,
-                      SignsAccident as SignsAccidentORM)
+from ..tables import (
+    TypeBrake as TypeBrakeORM,
+    SignsAccident as SignsAccidentORM,
+    CodeErrorAccident,
+)
 
 from ..repositories import EnvRepository, TypeBrakeRepository
 
@@ -76,6 +79,73 @@ class EnvService:
 
         except Exception:
             raise Exception()
+        finally:
+            await file.close()
+
+    async def get_all_error_code_accident(self) -> list[CodeErrorAccidentModel] | None:
+        entity = await self.__env_repo.get_all_error_code_accident()
+        if entity is None:
+            return None
+        return [CodeErrorAccidentModel.model_validate(i, from_attributes=True) for i in entity]
+
+    async def add_error_code_accident(self, target: CodeErrorAccidentModel) -> CodeErrorAccidentModel | None:
+        entity = CodeErrorAccident(
+            name=target.name,
+            description=target.description,
+        )
+        entity = await self.__env_repo.add(entity)
+        if entity is None:
+            return None
+        return CodeErrorAccidentModel.model_validate(entity, from_attributes=True)
+
+    async def update_error_code_accident(self, id_error: int, target: CodeErrorAccidentModel) -> CodeErrorAccidentModel | None:
+        entity = await self.__env_repo.get_error_code_accident_by_id(id_error)
+        if entity is None:
+            return None
+        entity.name = target.name
+        entity.description = target.description
+        entity = await self.__env_repo.update(entity)
+        if entity is None:
+            return None
+        return CodeErrorAccidentModel.model_validate(entity, from_attributes=True)
+
+    async def delete_error_code_accident(self, id_error: int) -> bool:
+        return await self.__env_repo.delete_error_code_accident(id_error)
+
+    async def import_error_code_accident(self, file: UploadFile):
+        try:
+            error_codes: list[CodeErrorAccident] = []
+            while contents := await file.read(1024 * 1024):
+                # Пытаемся сначала разобрать как UTF-8, если не получается – падаем в cp1251
+                try:
+                    decoded = contents.decode("utf-8-sig")
+                except UnicodeDecodeError:
+                    decoded = contents.decode("cp1251")
+
+                buffer = StringIO(decoded)
+                csv_reader = csv.DictReader(buffer, delimiter=";")
+
+                for rows in csv_reader:
+                    # Поддерживаем варианты заголовков name/Name/NAME и description/Description/DESCRIPTION
+                    name = rows.get("name") or rows.get("Name") or rows.get("NAME")
+                    description = (
+                        rows.get("description")
+                        or rows.get("Description")
+                        or rows.get("DESCRIPTION")
+                    )
+
+                    # Строки без имени пропускаем
+                    if not name:
+                        continue
+
+                    error_code = CodeErrorAccident(
+                        name=name,
+                        description=description,
+                    )
+                    error_codes.append(error_code)
+
+            if error_codes:
+                await self.__env_repo.add_list_error_code_accident(error_codes)
         finally:
             await file.close()
 

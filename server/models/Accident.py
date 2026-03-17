@@ -32,6 +32,12 @@ class BaseTypeBrake(BaseModel):
     id_type: int
 
 
+class CodeErrorAccidentModel(BaseModel):
+    id: int | None = None
+    name: str
+    description: str | None = None
+
+
 class GetTypeBrake(BaseTypeBrake):
     type: ClassBrake
 
@@ -88,10 +94,12 @@ class GetAccident(GetLightweightAccident):
 
     type_brakes: list[GetTypeBrake]
     signs_accident: list[SignsAccident]
+    error_code_accident: CodeErrorAccidentModel | None = None
 
     time_line: dict
 
     causes_of_the_emergency: str
+    reason_for_shutdown: str | None = None
     damaged_equipment_material: str
     event: list[GetEvent]
 
@@ -125,8 +133,10 @@ class UpdateAccident(BaseModel):
     equipments: list[str]
     type_brakes: list[int] | None
     signs_accident: list[int] | None
+    id_error_code_accident: int
 
     causes_of_the_emergency: str
+    reason_for_shutdown: str
     damaged_equipment_material: str
     additional_material: str | None
     id_state_accident: int | None

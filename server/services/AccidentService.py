@@ -7,6 +7,7 @@ from ..models.Accident import (
     UpdateAccident,
     GetLightweightAccident,
     FileAccident,
+    CodeErrorAccidentModel,
 )
 from ..models.Event import *
 from ..models.User import UserGet
@@ -68,6 +69,7 @@ class AccidentService:
             datetime_end=accident.datetime_end.replace(tzinfo=None) if accident.datetime_end is not None else None,
             time_line={},
             causes_of_the_emergency="Нет",
+            reason_for_shutdown="Нет",
             damaged_equipment_material="Нет",
             additional_material="Нет",
             id_state_accident=state_accident.id,
@@ -131,6 +133,14 @@ class AccidentService:
         if getattr(accident_orm, "event", None):
             events = [GetEvent.model_validate(e, from_attributes=True) for e in accident_orm.event]
 
+        error_code = None
+        if getattr(accident_orm, "error_code_accident", None):
+            error_code = CodeErrorAccidentModel(
+                id=accident_orm.error_code_accident.id,
+                name=accident_orm.error_code_accident.name,
+                description=accident_orm.error_code_accident.description,
+            )
+
         return GetAccident(
             uuid=accident_orm.uuid,
             uuid_object=uuid_object,
@@ -139,8 +149,10 @@ class AccidentService:
             signs_accident=signs_accident,
             damaged_equipment=damaged_equipment,
             type_brakes=type_brakes,
+            error_code_accident=error_code,
             time_line=accident_orm.time_line or {},
             causes_of_the_emergency=accident_orm.causes_of_the_emergency or "",
+            reason_for_shutdown=accident_orm.reason_for_shutdown,
             damaged_equipment_material=accident_orm.damaged_equipment_material or "",
             event=events,
             id_state_accident=accident_orm.id_state_accident,
@@ -185,8 +197,10 @@ class AccidentService:
         entity.datetime_end = target.datetime_end.replace(tzinfo=None) if target.datetime_end is not None else None
         entity.type_brakes = types_brake
         entity.causes_of_the_emergency = target.causes_of_the_emergency
+        entity.reason_for_shutdown = target.reason_for_shutdown
         entity.damaged_equipment_material = target.damaged_equipment_material
         entity.additional_material = target.additional_material
+        entity.id_error_code_accident = target.id_error_code_accident
         entity.id_state_accident = state_accident_obj.id
         entity.signs_accident = signs_accident
 

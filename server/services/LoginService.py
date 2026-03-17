@@ -1,18 +1,11 @@
-from jose import JWTError, jwt
-
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from httpx import AsyncClient
 
-from .DocumentService import DocumentService
-from ..repositories import UserRepository
-from ..models.User import UserGet, TypeUser
-from ..models.UserLogin import UserLogin, Token, RedirectYandex
+from ..models.User import UserGet
 from ..settings import settings
 from ..response import get_client
-from datetime import datetime, timedelta
 
-import re
 
 USER_PROFILE_URL = f"{settings.user_service_url.rstrip('/')}/v1/user/get/profile"
 
@@ -22,10 +15,10 @@ oauth2_cheme = OAuth2PasswordBearer(
 
 
 exception_unauthorized = HTTPException(status_code=status.HTTP_403_FORBIDDEN,
-                                           detail="token",
-                                           headers={
-                                               "AgcDocument": 'Bearer'
-                                           })
+                                       detail="token",
+                                       headers={
+                                           "AgcDocument": 'Bearer'
+                                       })
 
 
 async def get_current_user(

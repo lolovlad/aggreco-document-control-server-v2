@@ -13,7 +13,7 @@ from ..models.Statistic import (
     GetMonthlyClassBrakeStatistic,
 )
 from ..models.Accident import ClassBrake
-from ..services import StatisticService, get_current_user
+from ..services import StatisticService, get_current_user, ReportService
 from ..functions import access_control
 
 
@@ -250,6 +250,35 @@ async def export_statistics_to_csv(
         start_date=start_date,
         end_date=end_date,
         list_object=list_object,
+    )
+
+
+@router.get("/export/month_report")
+@access_control(["super_admin", "admin"])
+async def export_month_report(
+        start_date: str = Query(..., description="Начальная дата в формате YYYY-MM-DD"),
+        end_date: str = Query(..., description="Конечная дата в формате YYYY-MM-DD"),
+        current_user: UserGet = Depends(get_current_user),
+        report_service: ReportService = Depends()
+):
+    """
+    Формирует и возвращает Excel-отчёт по авариям за период.
+    """
+    from datetime import datetime
+
+    dt_from = datetime.fromisoformat(start_date)
+    dt_to = datetime.fromisoformat(end_date)
+
+    excel_stream = await report_service.build_month_report(dt_from, dt_to)
+
+    filename = f"january_incidents_{dt_from.strftime('%Y%m%d')}_{dt_to.strftime('%Y%m%d')}.xlsx"
+
+    return StreamingResponse(
+        excel_stream,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
     )
 
     # Создаем поток для CSV
