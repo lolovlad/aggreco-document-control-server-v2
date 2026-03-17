@@ -20,6 +20,7 @@ from ..models.Accident import (
 )
 
 
+
 class ReportService:
     """
     Формирование отчёта по авариям в формате Excel по заданному диапазону дат.
